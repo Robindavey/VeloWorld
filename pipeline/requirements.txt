@@ -1,0 +1,33 @@
+# VeloWorld Route Processing Pipeline Requirements
+
+# Core geospatial processing
+GDAL==3.6.4
+rasterio==1.3.8
+numpy==1.24.3
+shapely==2.0.1
+pyproj==3.6.0
+geopandas==0.13.2
+
+# HTTP and API clients
+requests==2.31.0
+httpx==0.24.1
+
+# Data processing and serialization
+pandas==2.0.3
+pydantic==2.0.3
+
+# Testing
+pytest==7.4.0
+pytest-asyncio==0.21.1
+
+# Development and utilities
+black==23.7.0
+mypy==1.5.1
+flake8==6.0.0
+
+# Optional: FIT file parsing (for Garmin devices)
+fitparse==1.2.0
+
+# Optional: Additional geospatial libraries
+scipy==1.11.1
+scikit-image==0.21.0
