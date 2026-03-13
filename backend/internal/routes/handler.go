@@ -214,60 +214,6 @@ func (h *Handler) GetRoute(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(route)
 }
 
-func (h *Handler) GetRoutePackage(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(uuid.UUID)
-	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	vars := mux.Vars(r)
-	routeIDStr := vars["id"]
-	routeID, err := uuid.Parse(routeIDStr)
-	if err != nil {
-		http.Error(w, "Invalid route ID", http.StatusBadRequest)
-		return
-	}
-
-	// Check if route exists and belongs to user, and is completed
-	var processingStatus string
-	var s3Key string
-	err = h.DB.QueryRow(`
-		SELECT processing_status, s3_key
-		FROM routes
-		WHERE id = $1 AND owner_id = $2`,
-		routeID, userID).Scan(&processingStatus, &s3Key)
-
-	if err == sql.ErrNoRows {
-		http.Error(w, "Route not found", http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		http.Error(w, "Database error", http.StatusInternalServerError)
-		return
-	}
-
-	if processingStatus != "completed" {
-		http.Error(w, "Route processing not completed", http.StatusBadRequest)
-		return
-	}
-
-	// Get the processed package from S3
-	packageData, err := h.Storage.DownloadProcessedPackage(routeID)
-	if err != nil {
-		http.Error(w, "Failed to retrieve processed package", http.StatusInternalServerError)
-		return
-	}
-
-	// Set headers for file download
-	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"route_%s.zip\"", routeID.String()))
-	w.Header().Set("Content-Length", strconv.Itoa(len(packageData)))
-
-	// Write the package data
-	w.Write(packageData)
-}
-
 func (h *Handler) DeleteRoute(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("user_id").(uuid.UUID)
 	if !ok {
