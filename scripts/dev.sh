@@ -19,6 +19,7 @@ S3_BUCKET_DEFAULT="veloworld"
 S3_BASE_PATH_DEFAULT="uploads"
 
 PID_FILE="/tmp/veloworld_frontend.pid"
+HTTPS_PID_FILE="/tmp/veloworld_frontend_https.pid"
 
 function start_all() {
   echo "Starting full stack via docker-compose..."
