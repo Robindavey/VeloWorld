@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: veloworld
       POSTGRES_PASSWORD: veloworld
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/db/migrations:/docker-entrypoint-initdb.d
@@ -31,26 +31,26 @@ services:
       timeout: 5s
       retries: 5
 
-  pipeline-worker:
-    build:
-      context: ..
-      dockerfile: infra/Dockerfile.pipeline
-    environment:
-      - DATABASE_URL=postgresql://veloworld:veloworld@postgres:5432/veloworld
-      - REDIS_URL=redis://redis:6379
-      - S3_ENDPOINT=http://minio:9000
-      - S3_ACCESS_KEY=minioadmin
-      - S3_SECRET_KEY=minioadmin
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-    volumes:
-      - ../pipeline:/app
-    command: python -m workers.runner
+  # pipeline-worker:
+  #   build:
+  #     context: ..
+  #     dockerfile: infra/Dockerfile.pipeline
+  #   environment:
+  #     - DATABASE_URL=postgresql://veloworld:veloworld@postgres:5432/veloworld
+  #     - REDIS_URL=redis://redis:6379
+  #     - S3_ENDPOINT=http://minio:9000
+  #     - S3_ACCESS_KEY=minioadmin
+  #     - S3_SECRET_KEY=minioadmin
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #     minio:
+  #       condition: service_healthy
+  #   volumes:
+  #     - ../pipeline:/app
+  #   command: python -m workers.runner
 
   api-backend:
     build:
@@ -75,9 +75,9 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-    volumes:
-      - ../backend:/app
-    command: go run cmd/api/main.go
+    # volumes:
+    #   - ../backend:/app
+    command: ./api
 
   minio:
     image: minio/minio

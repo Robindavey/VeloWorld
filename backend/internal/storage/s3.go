@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -30,9 +31,9 @@ type Config struct {
 
 func NewS3Storage(config Config) (*S3Storage, error) {
 	sess, err := session.NewSession(&aws.Config{
-		Region:      aws.String("us-east-1"), // Default region for MinIO
-		Endpoint:    aws.String(config.Endpoint),
-		Credentials: credentials.NewStaticCredentials(config.AccessKey, config.SecretKey, ""),
+		Region:           aws.String("us-east-1"), // Default region for MinIO
+		Endpoint:         aws.String(config.Endpoint),
+		Credentials:      credentials.NewStaticCredentials(config.AccessKey, config.SecretKey, ""),
 		S3ForcePathStyle: aws.Bool(true), // Required for MinIO
 		DisableSSL:       aws.Bool(!config.UseSSL),
 	})
@@ -41,6 +42,15 @@ func NewS3Storage(config Config) (*S3Storage, error) {
 	}
 
 	client := s3.New(sess)
+
+	// Ensure the bucket exists (MinIO does not auto-create buckets)
+	_, err = client.HeadBucket(&s3.HeadBucketInput{Bucket: aws.String(config.Bucket)})
+	if err != nil {
+		_, err = client.CreateBucket(&s3.CreateBucketInput{Bucket: aws.String(config.Bucket)})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create bucket %s: %w", config.Bucket, err)
+		}
+	}
 
 	return &S3Storage{
 		client:   client,
@@ -107,7 +117,7 @@ func (s *S3Storage) GetRouteFileURL(key string, expires int64) (string, error) {
 		Key:    aws.String(key),
 	})
 
-	url, err := req.Presign(expires)
+	url, err := req.Presign(time.Duration(expires) * time.Second)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate presigned URL: %w", err)
 	}

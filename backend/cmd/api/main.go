@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 	"github.com/veloworld/backend/internal/auth"
 	"github.com/veloworld/backend/internal/middleware"
@@ -17,23 +18,22 @@ import (
 	"github.com/veloworld/backend/internal/rides"
 	"github.com/veloworld/backend/internal/routes"
 	"github.com/veloworld/backend/internal/storage"
-	_ "github.com/lib/pq"
 )
 
 type App struct {
-	DB            *sql.DB
-	Redis         *redis.Client
-	Storage       *storage.S3Storage
-	Queue         *queue.JobQueue
-	Router        *mux.Router
-	AuthHandler   *auth.Handler
-	RouteHandler  *routes.Handler
-	RideHandler   *rides.Handler
+	DB           *sql.DB
+	Redis        *redis.Client
+	Storage      *storage.S3Storage
+	Queue        *queue.JobQueue
+	Router       *mux.Router
+	AuthHandler  *auth.Handler
+	RouteHandler *routes.Handler
+	RideHandler  *rides.Handler
 }
 
 func (a *App) Initialize() error {
 	ctx := context.Background()
-	
+
 	// Database connection
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
@@ -101,6 +101,20 @@ func (a *App) Initialize() error {
 
 	a.Router = mux.NewRouter()
 
+	// CORS middleware
+	a.Router.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	})
+
 	a.AuthHandler = auth.NewHandler(a.DB, a.Redis)
 	a.RouteHandler = routes.NewHandler(a.DB, a.Redis, a.Storage, a.Queue)
 	a.RideHandler = rides.NewHandler(a.DB, a.Redis)
@@ -117,7 +131,7 @@ func (a *App) initializeRoutes() {
 	// Auth routes
 	a.Router.HandleFunc("/auth/register", a.AuthHandler.Register).Methods("POST")
 	a.Router.HandleFunc("/auth/login", a.AuthHandler.Login).Methods("POST")
-	a.Router.HandleFunc("/auth/me", middleware.AuthMiddleware(http.HandlerFunc(a.AuthHandler.GetCurrentUser))).Methods("GET")
+	a.Router.Handle("/auth/me", middleware.AuthMiddleware(http.HandlerFunc(a.AuthHandler.GetCurrentUser))).Methods("GET")
 
 	// Route routes (protected)
 	protected := a.Router.PathPrefix("/").Subrouter()
@@ -137,8 +151,20 @@ func (a *App) initializeRoutes() {
 }
 
 func (a *App) Run(addr string) {
+	// Wrap the router so we always set CORS headers, including for 405/404 responses.
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		a.Router.ServeHTTP(w, r)
+	})
+
 	log.Printf("Server starting on %s", addr)
-	log.Fatal(http.ListenAndServe(addr, a.Router))
+	log.Fatal(http.ListenAndServe(addr, handler))
 }
 
 func (a *App) healthCheck(w http.ResponseWriter, r *http.Request) {

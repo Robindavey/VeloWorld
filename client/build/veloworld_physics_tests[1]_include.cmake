@@ -1,0 +1,5 @@
+if(EXISTS "/home/robin/Desktop/Programs/VeloWorld/client/build/veloworld_physics_tests[1]_tests.cmake")
+  include("/home/robin/Desktop/Programs/VeloWorld/client/build/veloworld_physics_tests[1]_tests.cmake")
+else()
+  add_test(veloworld_physics_tests_NOT_BUILT veloworld_physics_tests_NOT_BUILT)
+endif()

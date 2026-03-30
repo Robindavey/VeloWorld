@@ -2,6 +2,8 @@
 #include "VeloWorld/Physics/PhysicsEngine.h"
 #include "VeloWorld/Physics/SimulatedTrainer.h"
 #include "VeloWorld/Physics/RouteProfile.h"
+#include "VeloWorld/Trainer/TrainerCalibration.h"
+#include "VeloWorld/Trainer/TrainerManager.h"
 
 #include <gtest/gtest.h>
 #include <cmath>
@@ -216,6 +218,20 @@ TEST(PhysicsEngineTest, CornerBrakingReducesSpeedTowardSafeLimit) {
     for (int i = 0; i < 60 * 2; ++i) e2.Tick(1.0f / 60.0f);
     const float vAfter = e2.GetState().velocityMs;
     EXPECT_LE(vAfter, vBefore);
+}
+
+TEST(TrainerCalibrationTest, DefaultProfile) {
+    VeloWorld::Trainer::TrainerCalibration cal;
+    auto profile = cal.GetProfileOrDefault("nonexistent");
+    EXPECT_EQ(profile.resistanceScale, 1.0f);
+    EXPECT_EQ(profile.resistanceOffsetN, 0.0f);
+}
+
+TEST(TrainerManagerTest, GetCalibrationForDevice) {
+    VeloWorld::Trainer::TrainerManager mgr;
+    auto profile = mgr.GetCalibrationForDevice("test");
+    EXPECT_EQ(profile.resistanceScale, 1.0f);
+    EXPECT_EQ(profile.resistanceOffsetN, 0.0f);
 }
 
 

@@ -22,6 +22,8 @@ type Handler struct {
 type RegisterRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	Name     string `json:"name,omitempty"`
+	Bio      string `json:"bio,omitempty"`
 }
 
 type LoginRequest struct {
@@ -32,6 +34,8 @@ type LoginRequest struct {
 type User struct {
 	ID    uuid.UUID `json:"id"`
 	Email string    `json:"email"`
+	Name  *string   `json:"name,omitempty"`
+	Bio   *string   `json:"bio,omitempty"`
 }
 
 type Claims struct {
@@ -66,9 +70,9 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	// Create user
 	userID := uuid.New()
 	_, err = h.DB.Exec(`
-		INSERT INTO users (id, email, password_hash)
-		VALUES ($1, $2, $3)`,
-		userID, req.Email, string(hashedPassword))
+		INSERT INTO users (id, email, password_hash, name, bio)
+		VALUES ($1, $2, $3, $4, $5)`,
+		userID, req.Email, string(hashedPassword), req.Name, req.Bio)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
 			http.Error(w, "Email already exists", http.StatusConflict)
@@ -136,13 +140,21 @@ func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var email string
-	err := h.DB.QueryRow("SELECT email FROM users WHERE id = $1", userID).Scan(&email)
+	var name sql.NullString
+	var bio sql.NullString
+	err := h.DB.QueryRow("SELECT email, name, bio FROM users WHERE id = $1", userID).Scan(&email, &name, &bio)
 	if err != nil {
 		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
 
 	user := User{ID: userID, Email: email}
+	if name.Valid {
+		user.Name = &name.String
+	}
+	if bio.Valid {
+		user.Bio = &bio.String
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
 }

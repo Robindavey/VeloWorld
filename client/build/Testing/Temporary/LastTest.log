@@ -1,0 +1,378 @@
+Start testing: Mar 15 10:48 GMT
+----------------------------------------------------------
+1/13 Testing: ForceModelTest.GravityFlatIsZero
+1/13 Test: ForceModelTest.GravityFlatIsZero
+Command: "/home/robin/Desktop/Programs/VeloWorld/client/build/veloworld_physics_tests" "--gtest_filter=ForceModelTest.GravityFlatIsZero" "--gtest_also_run_disabled_tests"
+Directory: /home/robin/Desktop/Programs/VeloWorld/client/build
+"ForceModelTest.GravityFlatIsZero" start time: Mar 15 10:48 GMT
+Output:
+----------------------------------------------------------
+Running main() from /home/robin/Desktop/Programs/VeloWorld/client/build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ForceModelTest.GravityFlatIsZero
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ForceModelTest
+[ RUN      ] ForceModelTest.GravityFlatIsZero
+[       OK ] ForceModelTest.GravityFlatIsZero (0 ms)
+[----------] 1 test from ForceModelTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (1 ms total)
+[  PASSED  ] 1 test.
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"ForceModelTest.GravityFlatIsZero" end time: Mar 15 10:48 GMT
+"ForceModelTest.GravityFlatIsZero" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/13 Testing: ForceModelTest.RollingResistancePositive
+2/13 Test: ForceModelTest.RollingResistancePositive
+Command: "/home/robin/Desktop/Programs/VeloWorld/client/build/veloworld_physics_tests" "--gtest_filter=ForceModelTest.RollingResistancePositive" "--gtest_also_run_disabled_tests"
+Directory: /home/robin/Desktop/Programs/VeloWorld/client/build
+"ForceModelTest.RollingResistancePositive" start time: Mar 15 10:48 GMT
+Output:
+----------------------------------------------------------
+Running main() from /home/robin/Desktop/Programs/VeloWorld/client/build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ForceModelTest.RollingResistancePositive
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ForceModelTest
+[ RUN      ] ForceModelTest.RollingResistancePositive
+[       OK ] ForceModelTest.RollingResistancePositive (0 ms)
+[----------] 1 test from ForceModelTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"ForceModelTest.RollingResistancePositive" end time: Mar 15 10:48 GMT
+"ForceModelTest.RollingResistancePositive" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/13 Testing: ForceModelTest.AirDensityAltitudeDecreases
+3/13 Test: ForceModelTest.AirDensityAltitudeDecreases
+Command: "/home/robin/Desktop/Programs/VeloWorld/client/build/veloworld_physics_tests" "--gtest_filter=ForceModelTest.AirDensityAltitudeDecreases" "--gtest_also_run_disabled_tests"
+Directory: /home/robin/Desktop/Programs/VeloWorld/client/build
+"ForceModelTest.AirDensityAltitudeDecreases" start time: Mar 15 10:48 GMT
+Output:
+----------------------------------------------------------
+Running main() from /home/robin/Desktop/Programs/VeloWorld/client/build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ForceModelTest.AirDensityAltitudeDecreases
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ForceModelTest
+[ RUN      ] ForceModelTest.AirDensityAltitudeDecreases
+[       OK ] ForceModelTest.AirDensityAltitudeDecreases (0 ms)
+[----------] 1 test from ForceModelTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"ForceModelTest.AirDensityAltitudeDecreases" end time: Mar 15 10:48 GMT
+"ForceModelTest.AirDensityAltitudeDecreases" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/13 Testing: ForceModelTest.GravityMatchesHandCalculationAtTenPercent
+4/13 Test: ForceModelTest.GravityMatchesHandCalculationAtTenPercent
+Command: "/home/robin/Desktop/Programs/VeloWorld/client/build/veloworld_physics_tests" "--gtest_filter=ForceModelTest.GravityMatchesHandCalculationAtTenPercent" "--gtest_also_run_disabled_tests"
+Directory: /home/robin/Desktop/Programs/VeloWorld/client/build
+"ForceModelTest.GravityMatchesHandCalculationAtTenPercent" start time: Mar 15 10:48 GMT
+Output:
+----------------------------------------------------------
+Running main() from /home/robin/Desktop/Programs/VeloWorld/client/build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ForceModelTest.GravityMatchesHandCalculationAtTenPercent
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ForceModelTest
+[ RUN      ] ForceModelTest.GravityMatchesHandCalculationAtTenPercent
+[       OK ] ForceModelTest.GravityMatchesHandCalculationAtTenPercent (0 ms)
+[----------] 1 test from ForceModelTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"ForceModelTest.GravityMatchesHandCalculationAtTenPercent" end time: Mar 15 10:48 GMT
+"ForceModelTest.GravityMatchesHandCalculationAtTenPercent" time elapsed: 00:00:00
+----------------------------------------------------------
+
+5/13 Testing: ForceModelTest.AerodynamicDragMatchesReferenceAt40Kph
+5/13 Test: ForceModelTest.AerodynamicDragMatchesReferenceAt40Kph
+Command: "/home/robin/Desktop/Programs/VeloWorld/client/build/veloworld_physics_tests" "--gtest_filter=ForceModelTest.AerodynamicDragMatchesReferenceAt40Kph" "--gtest_also_run_disabled_tests"
+Directory: /home/robin/Desktop/Programs/VeloWorld/client/build
+"ForceModelTest.AerodynamicDragMatchesReferenceAt40Kph" start time: Mar 15 10:48 GMT
+Output:
+----------------------------------------------------------
+Running main() from /home/robin/Desktop/Programs/VeloWorld/client/build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ForceModelTest.AerodynamicDragMatchesReferenceAt40Kph
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ForceModelTest
+[ RUN      ] ForceModelTest.AerodynamicDragMatchesReferenceAt40Kph
+/home/robin/Desktop/Programs/VeloWorld/client/Source/VeloWorld/Physics/PhysicsTests.cpp:43: Failure
+The difference between f and 60.4f is 36.202468872070312, which exceeds 0.6f, where
+f evaluates to 24.197532653808594,
+60.4f evaluates to 60.400001525878906, and
+0.6f evaluates to 0.60000002384185791.
+
+[  FAILED  ] ForceModelTest.AerodynamicDragMatchesReferenceAt40Kph (0 ms)
+[----------] 1 test from ForceModelTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] ForceModelTest.AerodynamicDragMatchesReferenceAt40Kph
+
+ 1 FAILED TEST
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Failed.
+"ForceModelTest.AerodynamicDragMatchesReferenceAt40Kph" end time: Mar 15 10:48 GMT
+"ForceModelTest.AerodynamicDragMatchesReferenceAt40Kph" time elapsed: 00:00:00
+----------------------------------------------------------
+
+6/13 Testing: ForceModelTest.SurfaceCrrIncreasesOnCobblestone
+6/13 Test: ForceModelTest.SurfaceCrrIncreasesOnCobblestone
+Command: "/home/robin/Desktop/Programs/VeloWorld/client/build/veloworld_physics_tests" "--gtest_filter=ForceModelTest.SurfaceCrrIncreasesOnCobblestone" "--gtest_also_run_disabled_tests"
+Directory: /home/robin/Desktop/Programs/VeloWorld/client/build
+"ForceModelTest.SurfaceCrrIncreasesOnCobblestone" start time: Mar 15 10:48 GMT
+Output:
+----------------------------------------------------------
+Running main() from /home/robin/Desktop/Programs/VeloWorld/client/build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ForceModelTest.SurfaceCrrIncreasesOnCobblestone
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ForceModelTest
+[ RUN      ] ForceModelTest.SurfaceCrrIncreasesOnCobblestone
+[       OK ] ForceModelTest.SurfaceCrrIncreasesOnCobblestone (0 ms)
+[----------] 1 test from ForceModelTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"ForceModelTest.SurfaceCrrIncreasesOnCobblestone" end time: Mar 15 10:48 GMT
+"ForceModelTest.SurfaceCrrIncreasesOnCobblestone" time elapsed: 00:00:00
+----------------------------------------------------------
+
+7/13 Testing: PhysicsEngineTest.ConstantPowerOnFlatIncreasesSpeed
+7/13 Test: PhysicsEngineTest.ConstantPowerOnFlatIncreasesSpeed
+Command: "/home/robin/Desktop/Programs/VeloWorld/client/build/veloworld_physics_tests" "--gtest_filter=PhysicsEngineTest.ConstantPowerOnFlatIncreasesSpeed" "--gtest_also_run_disabled_tests"
+Directory: /home/robin/Desktop/Programs/VeloWorld/client/build
+"PhysicsEngineTest.ConstantPowerOnFlatIncreasesSpeed" start time: Mar 15 10:48 GMT
+Output:
+----------------------------------------------------------
+Running main() from /home/robin/Desktop/Programs/VeloWorld/client/build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = PhysicsEngineTest.ConstantPowerOnFlatIncreasesSpeed
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from PhysicsEngineTest
+[ RUN      ] PhysicsEngineTest.ConstantPowerOnFlatIncreasesSpeed
+[       OK ] PhysicsEngineTest.ConstantPowerOnFlatIncreasesSpeed (0 ms)
+[----------] 1 test from PhysicsEngineTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"PhysicsEngineTest.ConstantPowerOnFlatIncreasesSpeed" end time: Mar 15 10:48 GMT
+"PhysicsEngineTest.ConstantPowerOnFlatIncreasesSpeed" time elapsed: 00:00:00
+----------------------------------------------------------
+
+8/13 Testing: PhysicsEngineTest.Flat200WConvergesToExpectedSpeedRange
+8/13 Test: PhysicsEngineTest.Flat200WConvergesToExpectedSpeedRange
+Command: "/home/robin/Desktop/Programs/VeloWorld/client/build/veloworld_physics_tests" "--gtest_filter=PhysicsEngineTest.Flat200WConvergesToExpectedSpeedRange" "--gtest_also_run_disabled_tests"
+Directory: /home/robin/Desktop/Programs/VeloWorld/client/build
+"PhysicsEngineTest.Flat200WConvergesToExpectedSpeedRange" start time: Mar 15 10:48 GMT
+Output:
+----------------------------------------------------------
+Running main() from /home/robin/Desktop/Programs/VeloWorld/client/build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = PhysicsEngineTest.Flat200WConvergesToExpectedSpeedRange
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from PhysicsEngineTest
+[ RUN      ] PhysicsEngineTest.Flat200WConvergesToExpectedSpeedRange
+/home/robin/Desktop/Programs/VeloWorld/client/Source/VeloWorld/Physics/PhysicsTests.cpp:104: Failure
+Expected: (kph) >= (38.0f), actual: 34.5784416 vs 38
+
+[  FAILED  ] PhysicsEngineTest.Flat200WConvergesToExpectedSpeedRange (2 ms)
+[----------] 1 test from PhysicsEngineTest (2 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (2 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] PhysicsEngineTest.Flat200WConvergesToExpectedSpeedRange
+
+ 1 FAILED TEST
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Failed.
+"PhysicsEngineTest.Flat200WConvergesToExpectedSpeedRange" end time: Mar 15 10:48 GMT
+"PhysicsEngineTest.Flat200WConvergesToExpectedSpeedRange" time elapsed: 00:00:00
+----------------------------------------------------------
+
+9/13 Testing: PhysicsEngineTest.TrainerReceivesEquivalentGradientFromTotalForce
+9/13 Test: PhysicsEngineTest.TrainerReceivesEquivalentGradientFromTotalForce
+Command: "/home/robin/Desktop/Programs/VeloWorld/client/build/veloworld_physics_tests" "--gtest_filter=PhysicsEngineTest.TrainerReceivesEquivalentGradientFromTotalForce" "--gtest_also_run_disabled_tests"
+Directory: /home/robin/Desktop/Programs/VeloWorld/client/build
+"PhysicsEngineTest.TrainerReceivesEquivalentGradientFromTotalForce" start time: Mar 15 10:48 GMT
+Output:
+----------------------------------------------------------
+Running main() from /home/robin/Desktop/Programs/VeloWorld/client/build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = PhysicsEngineTest.TrainerReceivesEquivalentGradientFromTotalForce
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from PhysicsEngineTest
+[ RUN      ] PhysicsEngineTest.TrainerReceivesEquivalentGradientFromTotalForce
+[       OK ] PhysicsEngineTest.TrainerReceivesEquivalentGradientFromTotalForce (0 ms)
+[----------] 1 test from PhysicsEngineTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"PhysicsEngineTest.TrainerReceivesEquivalentGradientFromTotalForce" end time: Mar 15 10:48 GMT
+"PhysicsEngineTest.TrainerReceivesEquivalentGradientFromTotalForce" time elapsed: 00:00:00
+----------------------------------------------------------
+
+10/13 Testing: PhysicsEngineTest.SurfaceTypeSwitchingChangesResistanceForce
+10/13 Test: PhysicsEngineTest.SurfaceTypeSwitchingChangesResistanceForce
+Command: "/home/robin/Desktop/Programs/VeloWorld/client/build/veloworld_physics_tests" "--gtest_filter=PhysicsEngineTest.SurfaceTypeSwitchingChangesResistanceForce" "--gtest_also_run_disabled_tests"
+Directory: /home/robin/Desktop/Programs/VeloWorld/client/build
+"PhysicsEngineTest.SurfaceTypeSwitchingChangesResistanceForce" start time: Mar 15 10:48 GMT
+Output:
+----------------------------------------------------------
+Running main() from /home/robin/Desktop/Programs/VeloWorld/client/build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = PhysicsEngineTest.SurfaceTypeSwitchingChangesResistanceForce
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from PhysicsEngineTest
+[ RUN      ] PhysicsEngineTest.SurfaceTypeSwitchingChangesResistanceForce
+/home/robin/Desktop/Programs/VeloWorld/client/Source/VeloWorld/Physics/PhysicsTests.cpp:170: Failure
+Expected: (f1) > (f0), actual: 2.20725 vs 3.67875
+
+[  FAILED  ] PhysicsEngineTest.SurfaceTypeSwitchingChangesResistanceForce (0 ms)
+[----------] 1 test from PhysicsEngineTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] PhysicsEngineTest.SurfaceTypeSwitchingChangesResistanceForce
+
+ 1 FAILED TEST
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Failed.
+"PhysicsEngineTest.SurfaceTypeSwitchingChangesResistanceForce" end time: Mar 15 10:48 GMT
+"PhysicsEngineTest.SurfaceTypeSwitchingChangesResistanceForce" time elapsed: 00:00:00
+----------------------------------------------------------
+
+11/13 Testing: PhysicsEngineTest.CornerBrakingReducesSpeedTowardSafeLimit
+11/13 Test: PhysicsEngineTest.CornerBrakingReducesSpeedTowardSafeLimit
+Command: "/home/robin/Desktop/Programs/VeloWorld/client/build/veloworld_physics_tests" "--gtest_filter=PhysicsEngineTest.CornerBrakingReducesSpeedTowardSafeLimit" "--gtest_also_run_disabled_tests"
+Directory: /home/robin/Desktop/Programs/VeloWorld/client/build
+"PhysicsEngineTest.CornerBrakingReducesSpeedTowardSafeLimit" start time: Mar 15 10:48 GMT
+Output:
+----------------------------------------------------------
+Running main() from /home/robin/Desktop/Programs/VeloWorld/client/build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = PhysicsEngineTest.CornerBrakingReducesSpeedTowardSafeLimit
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from PhysicsEngineTest
+[ RUN      ] PhysicsEngineTest.CornerBrakingReducesSpeedTowardSafeLimit
+[       OK ] PhysicsEngineTest.CornerBrakingReducesSpeedTowardSafeLimit (0 ms)
+[----------] 1 test from PhysicsEngineTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"PhysicsEngineTest.CornerBrakingReducesSpeedTowardSafeLimit" end time: Mar 15 10:48 GMT
+"PhysicsEngineTest.CornerBrakingReducesSpeedTowardSafeLimit" time elapsed: 00:00:00
+----------------------------------------------------------
+
+12/13 Testing: TrainerCalibrationTest.DefaultProfile
+12/13 Test: TrainerCalibrationTest.DefaultProfile
+Command: "/home/robin/Desktop/Programs/VeloWorld/client/build/veloworld_physics_tests" "--gtest_filter=TrainerCalibrationTest.DefaultProfile" "--gtest_also_run_disabled_tests"
+Directory: /home/robin/Desktop/Programs/VeloWorld/client/build
+"TrainerCalibrationTest.DefaultProfile" start time: Mar 15 10:48 GMT
+Output:
+----------------------------------------------------------
+Running main() from /home/robin/Desktop/Programs/VeloWorld/client/build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = TrainerCalibrationTest.DefaultProfile
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from TrainerCalibrationTest
+[ RUN      ] TrainerCalibrationTest.DefaultProfile
+[       OK ] TrainerCalibrationTest.DefaultProfile (0 ms)
+[----------] 1 test from TrainerCalibrationTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"TrainerCalibrationTest.DefaultProfile" end time: Mar 15 10:48 GMT
+"TrainerCalibrationTest.DefaultProfile" time elapsed: 00:00:00
+----------------------------------------------------------
+
+13/13 Testing: TrainerManagerTest.GetCalibrationForDevice
+13/13 Test: TrainerManagerTest.GetCalibrationForDevice
+Command: "/home/robin/Desktop/Programs/VeloWorld/client/build/veloworld_physics_tests" "--gtest_filter=TrainerManagerTest.GetCalibrationForDevice" "--gtest_also_run_disabled_tests"
+Directory: /home/robin/Desktop/Programs/VeloWorld/client/build
+"TrainerManagerTest.GetCalibrationForDevice" start time: Mar 15 10:48 GMT
+Output:
+----------------------------------------------------------
+Running main() from /home/robin/Desktop/Programs/VeloWorld/client/build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = TrainerManagerTest.GetCalibrationForDevice
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from TrainerManagerTest
+[ RUN      ] TrainerManagerTest.GetCalibrationForDevice
+[       OK ] TrainerManagerTest.GetCalibrationForDevice (0 ms)
+[----------] 1 test from TrainerManagerTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"TrainerManagerTest.GetCalibrationForDevice" end time: Mar 15 10:48 GMT
+"TrainerManagerTest.GetCalibrationForDevice" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Mar 15 10:48 GMT

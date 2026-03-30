@@ -1,0 +1,3 @@
+/home/robin/Desktop/Programs/VeloWorld/client/build/_deps/nlohmann_json-subbuild/CMakeFiles/nlohmann_json-populate.dir
+/home/robin/Desktop/Programs/VeloWorld/client/build/_deps/nlohmann_json-subbuild/CMakeFiles/edit_cache.dir
+/home/robin/Desktop/Programs/VeloWorld/client/build/_deps/nlohmann_json-subbuild/CMakeFiles/rebuild_cache.dir

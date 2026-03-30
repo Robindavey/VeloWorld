@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VeloWorld - Cycling Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .auth-section, .upload-section, .routes-section {
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .route-item {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        .status-queued { color: orange; }
+        .status-processing { color: blue; }
+        .status-ready { color: green; }
+        .status-failed { color: red; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚴 VeloWorld</h1>
+        <p>Cycling Simulator - Upload routes and start riding!</p>
+
+        <!-- Authentication Section -->
+        <div id="auth-section" class="auth-section">
+            <h2>Login / Register</h2>
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" required>
+            </div>
+            <button onclick="login()">Login</button>
+            <a href="/register.html" style="margin-left: 12px; color: #007bff; text-decoration: none;">Create account</a>
+            <p id="auth-message"></p>
+        </div>
+
+        <!-- Upload Section -->
+        <div id="upload-section" class="upload-section hidden">
+            <h2>Upload Route</h2>
+            <div class="form-group">
+                <label for="route-name">Route Name:</label>
+                <input type="text" id="route-name" placeholder="Optional - will use filename if empty">
+            </div>
+            <div class="form-group">
+                <label for="route-description">Description:</label>
+                <textarea id="route-description" rows="3" placeholder="Optional description"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="route-file">GPX File:</label>
+                <input type="file" id="route-file" accept=".gpx,.fit,.tcx" required>
+            </div>
+            <button onclick="uploadRoute()">Upload Route</button>
+            <p id="upload-message"></p>
+        </div>
+
+        <!-- Routes Section -->
+        <div id="routes-section" class="routes-section hidden">
+            <h2>Your Routes</h2>
+            <button onclick="loadRoutes()">Refresh Routes</button>
+            <div id="routes-list"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080';
+        let authToken = localStorage.getItem('veloworld_token');
+
+        // Check if already logged in
+        if (authToken) {
+            showLoggedIn();
+        }
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    authToken = data.token;
+                    localStorage.setItem('veloworld_token', authToken);
+                    showLoggedIn();
+                    document.getElementById('auth-message').textContent = 'Login successful!';
+                } else {
+                    document.getElementById('auth-message').textContent = data.error || 'Login failed';
+                }
+            } catch (error) {
+                document.getElementById('auth-message').textContent = 'Network error';
+            }
+        }
+
+        async function register() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            if (!email || !password) {
+                document.getElementById('auth-message').textContent = 'Email and password are required';
+                return;
+            }
+
+            console.log('Registering with:', email, password);
+            console.log('API_BASE:', API_BASE);
+
+            try {
+                console.log('Making fetch request to:', `${API_BASE}/auth/register`);
+                const response = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+
+                const data = await response.json();
+                console.log('Response data:', data);
+
+                if (response.ok) {
+                    document.getElementById('auth-message').textContent = 'Registration successful! Please login.';
+                } else {
+                    document.getElementById('auth-message').textContent = data.error || 'Registration failed';
+                }
+            } catch (error) {
+                console.error('Network error:', error);
+                document.getElementById('auth-message').textContent = 'Network error';
+            }
+        }
+
+        function showLoggedIn() {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('upload-section').classList.remove('hidden');
+            document.getElementById('routes-section').classList.remove('hidden');
+            loadRoutes();
+        }
+
+        async function uploadRoute() {
+            const fileInput = document.getElementById('route-file');
+            const name = document.getElementById('route-name').value;
+            const description = document.getElementById('route-description').value;
+
+            if (!fileInput.files[0]) {
+                document.getElementById('upload-message').textContent = 'Please select a file';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('route_file', fileInput.files[0]);
+            if (name) formData.append('name', name);
+            if (description) formData.append('description', description);
+
+            try {
+                const response = await fetch(`${API_BASE}/routes`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` },
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('upload-message').textContent = 'Route uploaded successfully!';
+                    loadRoutes();
+                    // Clear form
+                    document.getElementById('route-name').value = '';
+                    document.getElementById('route-description').value = '';
+                    fileInput.value = '';
+                } else {
+                    document.getElementById('upload-message').textContent = data.error || 'Upload failed';
+                }
+            } catch (error) {
+                document.getElementById('upload-message').textContent = 'Network error';
+            }
+        }
+
+        async function loadRoutes() {
+            try {
+                const response = await fetch(`${API_BASE}/routes`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                const routes = await response.json();
+
+                if (response.ok) {
+                    displayRoutes(routes);
+                } else {
+                    document.getElementById('routes-list').innerHTML = '<p>Failed to load routes</p>';
+                }
+            } catch (error) {
+                document.getElementById('routes-list').innerHTML = '<p>Network error</p>';
+            }
+        }
+
+        function displayRoutes(routes) {
+            const container = document.getElementById('routes-list');
+
+            if (routes.length === 0) {
+                container.innerHTML = '<p>No routes yet. Upload your first route!</p>';
+                return;
+            }
+
+            container.innerHTML = routes.map(route => `
+                <div class="route-item">
+                    <h3>${route.name}</h3>
+                    <p>${route.description || 'No description'}</p>
+                    <p>Distance: ${route.distance_m ? (route.distance_m / 1000).toFixed(1) + ' km' : 'Unknown'}</p>
+                    <p>Elevation Gain: ${route.elevation_gain_m ? route.elevation_gain_m.toFixed(0) + ' m' : 'Unknown'}</p>
+                    <p>Status: <span class="status-${route.processing_status}">${route.processing_status}</span></p>
+                    <p>Created: ${new Date(route.created_at).toLocaleDateString()}</p>
+                    ${route.processing_status === 'ready' ? '<button onclick="startRide(\'' + route.id + '\')">Start Ride</button>' : ''}
+                </div>
+            `).join('');
+        }
+
+        function startRide(routeId) {
+            // For MVP, this would launch the Unreal Engine client
+            // For now, just show a message
+            alert(`Starting ride for route ${routeId}. In the full app, this would launch the 3D cycling simulator!`);
+        }
+
+        function logout() {
+            localStorage.removeItem('veloworld_token');
+            authToken = null;
+            location.reload();
+        }
+    </script>
+</body>
+</html>

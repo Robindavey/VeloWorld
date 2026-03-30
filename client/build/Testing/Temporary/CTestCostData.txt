@@ -1,0 +1,17 @@
+ForceModelTest.GravityFlatIsZero 1 0.00519561
+ForceModelTest.RollingResistancePositive 1 0.00286219
+ForceModelTest.AirDensityAltitudeDecreases 1 0.00354343
+ForceModelTest.GravityMatchesHandCalculationAtTenPercent 1 0.0031519
+ForceModelTest.AerodynamicDragMatchesReferenceAt40Kph 0 0
+ForceModelTest.SurfaceCrrIncreasesOnCobblestone 1 0.00318626
+PhysicsEngineTest.ConstantPowerOnFlatIncreasesSpeed 1 0.00373738
+PhysicsEngineTest.Flat200WConvergesToExpectedSpeedRange 0 0
+PhysicsEngineTest.TrainerReceivesEquivalentGradientFromTotalForce 1 0.00269611
+PhysicsEngineTest.SurfaceTypeSwitchingChangesResistanceForce 0 0
+PhysicsEngineTest.CornerBrakingReducesSpeedTowardSafeLimit 1 0.00381721
+TrainerCalibrationTest.DefaultProfile 1 0.0052524
+TrainerManagerTest.GetCalibrationForDevice 1 0.00348693
+---
+ForceModelTest.AerodynamicDragMatchesReferenceAt40Kph
+PhysicsEngineTest.Flat200WConvergesToExpectedSpeedRange
+PhysicsEngineTest.SurfaceTypeSwitchingChangesResistanceForce

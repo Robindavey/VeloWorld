@@ -25,14 +25,14 @@ type Handler struct {
 }
 
 type Route struct {
-	ID             uuid.UUID `json:"id"`
-	Name           string    `json:"name"`
-	Description    *string   `json:"description,omitempty"`
-	DistanceM      float64   `json:"distance_m"`
-	ElevationGainM *float64  `json:"elevation_gain_m,omitempty"`
-	ProcessingStatus string  `json:"processing_status"`
-	IsPublic       bool      `json:"is_public"`
-	CreatedAt      string    `json:"created_at"`
+	ID               uuid.UUID `json:"id"`
+	Name             string    `json:"name"`
+	Description      *string   `json:"description,omitempty"`
+	DistanceM        float64   `json:"distance_m"`
+	ElevationGainM   *float64  `json:"elevation_gain_m,omitempty"`
+	ProcessingStatus string    `json:"processing_status"`
+	IsPublic         bool      `json:"is_public"`
+	CreatedAt        string    `json:"created_at"`
 }
 
 type UploadRouteRequest struct {
@@ -100,23 +100,22 @@ func (h *Handler) UploadRoute(w http.ResponseWriter, r *http.Request) {
 
 	// Create route record
 	routeID := uuid.New()
+
+	// Upload file to S3 first
+	s3Key, err := h.Storage.UploadRouteFile(routeID, header.Filename, fileContent)
+	if err != nil {
+		http.Error(w, "Failed to store route file", http.StatusInternalServerError)
+		return
+	}
+
 	_, err = h.DB.Exec(`
-		INSERT INTO routes (id, owner_id, name, description, source_format, s3_key, processing_status)
-		VALUES ($1, $2, $3, $4, $5, $6, 'queued')`,
-		routeID, userID, name, description, ext[1:], s3Key) // Remove the dot from extension
+		INSERT INTO routes (id, owner_id, name, description, distance_m, elevation_gain_m, source_format, s3_key, processing_status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'queued')`,
+		routeID, userID, name, description, 0.0, nil, ext[1:], s3Key) // Remove the dot from extension
 	if err != nil {
 		// If database insert fails, delete the S3 file
 		h.Storage.DeleteRouteFile(s3Key)
 		http.Error(w, "Failed to create route", http.StatusInternalServerError)
-		return
-	}
-
-	// Upload file to S3
-	s3Key, err := h.Storage.UploadRouteFile(routeID, header.Filename, fileContent)
-	if err != nil {
-		// If S3 upload fails, delete the route record
-		h.DB.Exec("DELETE FROM routes WHERE id = $1", routeID)
-		http.Error(w, "Failed to store route file", http.StatusInternalServerError)
 		return
 	}
 
