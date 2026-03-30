@@ -37,7 +37,7 @@ func (a *App) Initialize() error {
 	// Database connection
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgresql://veloworld:veloworld@localhost:5432/veloworld?sslmode=disable"
+		dbURL = "postgres://veloworld:veloworld@postgres:5432/veloworld?sslmode=disable&connect_timeout=10"
 	}
 
 	var err error
@@ -132,6 +132,7 @@ func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/auth/register", a.AuthHandler.Register).Methods("POST")
 	a.Router.HandleFunc("/auth/login", a.AuthHandler.Login).Methods("POST")
 	a.Router.Handle("/auth/me", middleware.AuthMiddleware(http.HandlerFunc(a.AuthHandler.GetCurrentUser))).Methods("GET")
+	a.Router.Handle("/auth/profile", middleware.AuthMiddleware(http.HandlerFunc(a.AuthHandler.UpdateProfile))).Methods("PUT")
 
 	// Route routes (protected)
 	protected := a.Router.PathPrefix("/").Subrouter()
@@ -140,6 +141,7 @@ func (a *App) initializeRoutes() {
 	protected.HandleFunc("/routes", a.RouteHandler.ListRoutes).Methods("GET")
 	protected.HandleFunc("/routes/{id}", a.RouteHandler.GetRoute).Methods("GET")
 	protected.HandleFunc("/routes/{id}", a.RouteHandler.DeleteRoute).Methods("DELETE")
+	protected.HandleFunc("/routes/{id}/render-data", a.RouteHandler.GetRouteRenderData).Methods("GET")
 	protected.HandleFunc("/routes/public", a.RouteHandler.ListPublicRoutes).Methods("GET")
 	protected.HandleFunc("/routes/{id}/publish", a.RouteHandler.PublishRoute).Methods("POST")
 	protected.HandleFunc("/routes/{id}/package", a.RouteHandler.GetRoutePackage).Methods("GET")

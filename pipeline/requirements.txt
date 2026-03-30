@@ -11,6 +11,9 @@ geopandas==0.13.2
 # HTTP and API clients
 requests==2.31.0
 httpx==0.24.1
+redis==4.5.5
+psycopg[binary]==3.2.1
+boto3==1.35.44
 
 # Data processing and serialization
 pandas==2.0.3

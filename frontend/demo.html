@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VeloWorld Demo</title>
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""
+    />
+    <style>
+        body { margin: 0; font-family: Arial, sans-serif; background: #0d1117; color: #f0f6fc; }
+        .topbar { display: flex; gap: 12px; align-items: center; padding: 12px; background: #161b22; border-bottom: 1px solid #30363d; }
+        .topbar select, .topbar input, .topbar button { padding: 8px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: #f0f6fc; }
+        .main { display: flex; height: calc(100vh - 62px); }
+        .map-wrap { flex: 1; position: relative; }
+        #map { height: 100%; width: 100%; }
+        .hud { position: absolute; right: 12px; top: 12px; z-index: 1200; background: rgba(13, 17, 23, 0.9); border: 1px solid #30363d; border-radius: 10px; padding: 10px 12px; min-width: 220px; }
+        .hud-row { display: flex; justify-content: space-between; margin: 4px 0; }
+        .power-zone { font-weight: bold; }
+        .panel { width: 380px; border-left: 1px solid #30363d; background: #161b22; display: flex; flex-direction: column; transition: width 0.2s ease; }
+        .panel.collapsed { width: 48px; }
+        .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid #30363d; }
+        .panel-body { padding: 10px; overflow: auto; }
+        .panel.collapsed .panel-body, .panel.collapsed .panel-head span { display: none; }
+        #elevationCanvas { width: 100%; height: 220px; border: 1px solid #30363d; background: #0d1117; }
+        .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+        .muted { color: #8b949e; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <label>Route</label>
+        <select id="routeSelect"></select>
+        <button onclick="loadSelectedRoute()">Load Route</button>
+        <label>Power (W)</label>
+        <input id="powerInput" type="range" min="0" max="500" value="160" oninput="onPowerInput(this.value)" />
+        <span id="powerValue">160</span>
+        <label>Power Source</label>
+        <select id="powerSource" onchange="onPowerSourceChange()">
+            <option value="manual">Manual Slider</option>
+            <option value="device">Power Meter / Trainer</option>
+        </select>
+        <button id="connectDeviceBtn" onclick="connectPowerDevice()" disabled>Connect Device</button>
+        <span id="deviceStatus" class="muted">Manual</span>
+        <label>Time x</label>
+        <select id="timeMultiplier">
+            <option value="1">1x</option>
+            <option value="2">2x</option>
+            <option value="5">5x</option>
+            <option value="10">10x</option>
+        </select>
+        <button onclick="toggleRun()"><span id="runState">Start</span></button>
+        <a href="/index.html" style="color:#58a6ff">Back</a>
+    </div>
+    <div class="main">
+        <div class="map-wrap">
+            <div id="map"></div>
+            <div class="hud">
+                <div class="hud-row"><span>Distance</span><span id="hudDistance">0.0 km</span></div>
+                <div class="hud-row"><span>Speed</span><span id="hudSpeed">0.0 km/h</span></div>
+                <div class="hud-row"><span>Grade</span><span id="hudGrade">0.0%</span></div>
+                <div class="hud-row"><span>Power</span><span id="hudPower">160 W</span></div>
+                <div class="hud-row"><span>Zone</span><span id="hudZone" class="power-zone">Z2</span></div>
+                <div class="hud-row"><span>Time</span><span id="hudTime">00:00</span></div>
+            </div>
+        </div>
+        <div id="sidePanel" class="panel">
+            <div class="panel-head">
+                <span>Elevation + Rider Profile</span>
+                <button onclick="togglePanel()">⇔</button>
+            </div>
+            <div class="panel-body">
+                <canvas id="elevationCanvas" width="340" height="220"></canvas>
+                <div class="settings-grid">
+                    <label>Weight (kg)</label><input id="weightInput" type="number" min="35" max="250" step="0.1" value="75" />
+                    <label>FTP (W)</label><input id="ftpInput" type="number" min="80" max="600" step="1" value="210" />
+                </div>
+                <button style="margin-top:10px" onclick="saveProfile()">Save Profile</button>
+                <p class="muted">Power zone colors use rider FTP from profile.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script>
+        const API_BASE = 'http://localhost:8080';
+        const token = localStorage.getItem('veloworld_token');
+        if (!token) window.location.href = '/index.html';
+
+        const state = {
+            routes: [],
+            profile: [],
+            distanceM: 0,
+            positionM: 0,
+            running: false,
+            lastTickMs: 0,
+            elapsedS: 0,
+            rider: { weightKg: 75, ftpW: 210 },
+            powerSource: "manual",
+            livePowerW: 160,
+            powerDevice: null,
+            powerCharacteristic: null,
+            marker: null,
+            polyline: null,
+            map: null
+        };
+
+        function initMap() {
+            state.map = L.map('map').setView([51.505, -0.09], 13);
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: '&copy; Esri'
+            }).addTo(state.map);
+        }
+
+        async function fetchProfile() {
+            try {
+                const res = await fetch(`${API_BASE}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+                const me = await res.json();
+                state.rider.weightKg = me.rider_weight_kg || 75;
+                state.rider.ftpW = me.ftp_w || 210;
+            } catch (_) {}
+            document.getElementById('weightInput').value = state.rider.weightKg;
+            document.getElementById('ftpInput').value = state.rider.ftpW;
+        }
+
+        async function saveProfile() {
+            const weight = parseFloat(document.getElementById('weightInput').value || '75');
+            const ftp = parseFloat(document.getElementById('ftpInput').value || '210');
+            state.rider.weightKg = weight;
+            state.rider.ftpW = ftp;
+            await fetch(`${API_BASE}/auth/profile`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ rider_weight_kg: weight, ftp_w: ftp })
+            });
+            alert('Profile saved');
+        }
+
+        async function fetchRoutes() {
+            const res = await fetch(`${API_BASE}/routes`, { headers: { Authorization: `Bearer ${token}` } });
+            state.routes = await res.json();
+            const sel = document.getElementById('routeSelect');
+            sel.innerHTML = state.routes
+                .filter(r => r.processing_status === 'ready')
+                .map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+        }
+
+        async function loadSelectedRoute() {
+            const routeId = document.getElementById('routeSelect').value;
+            if (!routeId) return;
+            const res = await fetch(`${API_BASE}/routes/${routeId}/render-data`, { headers: { Authorization: `Bearer ${token}` } });
+            const data = await res.json();
+            state.profile = data.profile_points || [];
+            state.distanceM = data.distance_m || 0;
+            state.positionM = 0;
+            state.elapsedS = 0;
+            renderRouteOnMap();
+            drawElevation();
+            refreshHudPreview();
+        }
+
+        function renderRouteOnMap() {
+            const latLngs = state.profile.filter(p => p.lat && p.lon).map(p => [p.lat, p.lon]);
+            if (state.polyline) state.polyline.remove();
+            if (state.marker) state.marker.remove();
+            if (latLngs.length < 2) return;
+            state.polyline = L.polyline(latLngs, { color: '#58a6ff', weight: 3 }).addTo(state.map);
+            state.marker = L.circleMarker(latLngs[0], { radius: 6, color: '#ff3b30' }).addTo(state.map);
+            state.map.fitBounds(state.polyline.getBounds(), { padding: [20, 20] });
+        }
+
+        function toggleRun() {
+            state.running = !state.running;
+            document.getElementById('runState').textContent = state.running ? 'Pause' : 'Start';
+            if (state.running) {
+                state.lastTickMs = Date.now();
+                requestAnimationFrame(loop);
+            }
+        }
+
+        function loop() {
+            if (!state.running) return;
+            const now = Date.now();
+            const dtReal = Math.max(0.016, (now - state.lastTickMs) / 1000);
+            state.lastTickMs = now;
+            const dt = dtReal * parseFloat(document.getElementById('timeMultiplier').value || '1');
+            const power = getCurrentPower();
+            const grade = getGradePercent(state.positionM);
+            const speedKmh = calculateSpeed(power, grade, state.rider.weightKg);
+            state.positionM = Math.min(state.distanceM, state.positionM + (speedKmh / 3.6) * dt);
+            state.elapsedS += dt;
+            updateMarker(state.positionM);
+            updateHud(state.positionM, speedKmh, grade, power);
+            drawElevation();
+            if (state.positionM >= state.distanceM) state.running = false;
+            if (state.running) requestAnimationFrame(loop);
+        }
+
+        function calculateSpeed(power, gradePercent, weightKg) {
+            const mass = Math.max(35, weightKg) + 8.0;
+            const g = 9.81, crr = 0.005, rhoCdA = 0.32, eff = 0.97, slope = gradePercent / 100;
+            const usablePower = Math.max(0, power) * eff;
+            let lo = 0, hi = 30;
+            for (let i = 0; i < 35; i++) {
+                const v = (lo + hi) / 2;
+                const f = mass * g * crr + mass * g * slope + rhoCdA * v * v;
+                const p = Math.max(0, f) * v;
+                if (p > usablePower) hi = v; else lo = v;
+            }
+            return Math.max(3, Math.min(85, lo * 3.6));
+        }
+
+        function getPointAtDistance(distanceM) {
+            if (!state.profile.length) return null;
+            if (distanceM <= 0) return state.profile[0];
+            for (let i = 1; i < state.profile.length; i++) {
+                const a = state.profile[i - 1], b = state.profile[i];
+                if (distanceM <= b.distance_m) {
+                    const t = (distanceM - a.distance_m) / Math.max(1, b.distance_m - a.distance_m);
+                    return {
+                        distance_m: distanceM,
+                        elevation_m: a.elevation_m + (b.elevation_m - a.elevation_m) * t,
+                        lat: a.lat + (b.lat - a.lat) * t,
+                        lon: a.lon + (b.lon - a.lon) * t
+                    };
+                }
+            }
+            return state.profile[state.profile.length - 1];
+        }
+
+        function getGradePercent(distanceM) {
+            const a = getPointAtDistance(distanceM);
+            const b = getPointAtDistance(Math.min(state.distanceM, distanceM + 12));
+            if (!a || !b) return 0;
+            return ((b.elevation_m - a.elevation_m) / 12) * 100;
+        }
+
+        function updateMarker(distanceM) {
+            const p = getPointAtDistance(distanceM);
+            if (p && state.marker && p.lat && p.lon) {
+                state.marker.setLatLng([p.lat, p.lon]);
+                state.map.panTo([p.lat, p.lon], { animate: false });
+            }
+        }
+
+        function zoneFromPower(power, ftp) {
+            const ratio = ftp > 0 ? power / ftp : 0;
+            if (ratio < 0.55) return ['Z1 Recovery', '#8b949e'];
+            if (ratio < 0.75) return ['Z2 Endurance', '#2ea043'];
+            if (ratio < 0.9) return ['Z3 Tempo', '#d29922'];
+            if (ratio < 1.05) return ['Z4 Threshold', '#f85149'];
+            return ['Z5+ VO2', '#a371f7'];
+        }
+
+        function updateHud(distanceM, speedKmh, gradePercent, power) {
+            const [zone, color] = zoneFromPower(power, state.rider.ftpW);
+            document.getElementById('hudDistance').textContent = `${(distanceM / 1000).toFixed(2)} km`;
+            document.getElementById('hudSpeed').textContent = `${speedKmh.toFixed(1)} km/h`;
+            document.getElementById('hudGrade').textContent = `${gradePercent.toFixed(1)}%`;
+            document.getElementById('hudPower').textContent = `${Math.round(power)} W`;
+            const zoneEl = document.getElementById('hudZone');
+            zoneEl.textContent = zone;
+            zoneEl.style.color = color;
+            const m = Math.floor(state.elapsedS / 60), s = Math.floor(state.elapsedS % 60);
+            document.getElementById('hudTime').textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        function onPowerInput(value) {
+            document.getElementById('powerValue').textContent = value;
+            if (state.powerSource === "manual") {
+                state.livePowerW = parseFloat(value);
+            }
+            refreshHudPreview();
+        }
+
+        function getCurrentPower() {
+            if (state.powerSource === "device") {
+                return Math.max(0, state.livePowerW || 0);
+            }
+            return parseFloat(document.getElementById('powerInput').value || '0');
+        }
+
+        function onPowerSourceChange() {
+            state.powerSource = document.getElementById('powerSource').value;
+            const isDevice = state.powerSource === "device";
+            document.getElementById('powerInput').disabled = isDevice;
+            document.getElementById('connectDeviceBtn').disabled = !isDevice;
+            document.getElementById('deviceStatus').textContent = isDevice
+                ? (state.powerDevice ? "Device connected" : "No device connected")
+                : "Manual";
+            refreshHudPreview();
+        }
+
+        async function connectPowerDevice() {
+            if (!navigator.bluetooth) {
+                alert("Web Bluetooth not available in this browser. Use Chrome/Edge on HTTPS/localhost.");
+                return;
+            }
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: ['cycling_power'] }, { services: ['fitness_machine'] }],
+                    optionalServices: ['cycling_power', 'fitness_machine']
+                });
+                state.powerDevice = device;
+                const server = await device.gatt.connect();
+
+                // Priority 1: Cycling Power service for power meters.
+                try {
+                    const cpService = await server.getPrimaryService('cycling_power');
+                    const cpChar = await cpService.getCharacteristic('cycling_power_measurement');
+                    await cpChar.startNotifications();
+                    cpChar.addEventListener('characteristicvaluechanged', onCyclingPowerChanged);
+                    state.powerCharacteristic = cpChar;
+                    document.getElementById('deviceStatus').textContent = `Connected: ${device.name || 'Power Meter'}`;
+                    return;
+                } catch (_) {}
+
+                // Priority 2: FTMS Indoor Bike Data for smart trainers.
+                const ftmsService = await server.getPrimaryService('fitness_machine');
+                const bikeDataChar = await ftmsService.getCharacteristic(0x2AD2);
+                await bikeDataChar.startNotifications();
+                bikeDataChar.addEventListener('characteristicvaluechanged', onIndoorBikeDataChanged);
+                state.powerCharacteristic = bikeDataChar;
+                document.getElementById('deviceStatus').textContent = `Connected: ${device.name || 'Trainer'}`;
+            } catch (err) {
+                document.getElementById('deviceStatus').textContent = "Connection failed";
+                alert(`Device connection failed: ${err.message || err}`);
+            }
+        }
+
+        function onCyclingPowerChanged(event) {
+            const dv = event.target.value;
+            // Flags (uint16) + instantaneous power (int16 LE)
+            if (dv.byteLength < 4) return;
+            const power = dv.getInt16(2, true);
+            state.livePowerW = Math.max(0, power);
+            document.getElementById('powerValue').textContent = String(Math.round(state.livePowerW));
+            refreshHudPreview();
+        }
+
+        function onIndoorBikeDataChanged(event) {
+            const dv = event.target.value;
+            if (dv.byteLength < 2) return;
+            const flags = dv.getUint16(0, true);
+            let offset = 2;
+
+            // FTMS Indoor Bike Data parsing (common subset), skip fields based on flags.
+            if (flags & (1 << 0)) offset += 2; // instant speed
+            if (flags & (1 << 1)) offset += 2; // avg speed
+            if (flags & (1 << 2)) offset += 2; // instant cadence
+            if (flags & (1 << 3)) offset += 2; // avg cadence
+            if (flags & (1 << 4)) offset += 3; // total distance
+            if (flags & (1 << 5)) {
+                if (dv.byteLength >= offset + 2) {
+                    const power = dv.getInt16(offset, true);
+                    state.livePowerW = Math.max(0, power);
+                    document.getElementById('powerValue').textContent = String(Math.round(state.livePowerW));
+                    refreshHudPreview();
+                }
+            }
+        }
+
+        function refreshHudPreview() {
+            const power = getCurrentPower();
+            const grade = getGradePercent(state.positionM);
+            const speedKmh = calculateSpeed(power, grade, state.rider.weightKg);
+            updateHud(state.positionM, speedKmh, grade, power);
+        }
+
+        function drawElevation() {
+            const canvas = document.getElementById('elevationCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (state.profile.length < 2) return;
+            const minE = Math.min(...state.profile.map(p => p.elevation_m));
+            const maxE = Math.max(...state.profile.map(p => p.elevation_m));
+            const span = Math.max(1, maxE - minE);
+            ctx.strokeStyle = '#58a6ff';
+            ctx.beginPath();
+            state.profile.forEach((p, i) => {
+                const x = (p.distance_m / state.distanceM) * canvas.width;
+                const y = canvas.height - ((p.elevation_m - minE) / span) * (canvas.height - 16) - 8;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+            const rider = getPointAtDistance(state.positionM);
+            if (rider) {
+                const x = (rider.distance_m / state.distanceM) * canvas.width;
+                const y = canvas.height - ((rider.elevation_m - minE) / span) * (canvas.height - 16) - 8;
+                ctx.fillStyle = '#ff3b30';
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function togglePanel() {
+            document.getElementById('sidePanel').classList.toggle('collapsed');
+            setTimeout(() => state.map.invalidateSize(), 220);
+        }
+
+        (async function bootstrap() {
+            initMap();
+            await fetchProfile();
+            await fetchRoutes();
+            if (document.getElementById('routeSelect').value) await loadSelectedRoute();
+            onPowerSourceChange();
+            refreshHudPreview();
+        })();
+    </script>
+</body>
+</html>

@@ -31,33 +31,33 @@ services:
       timeout: 5s
       retries: 5
 
-  # pipeline-worker:
-  #   build:
-  #     context: ..
-  #     dockerfile: infra/Dockerfile.pipeline
-  #   environment:
-  #     - DATABASE_URL=postgresql://veloworld:veloworld@postgres:5432/veloworld
-  #     - REDIS_URL=redis://redis:6379
-  #     - S3_ENDPOINT=http://minio:9000
-  #     - S3_ACCESS_KEY=minioadmin
-  #     - S3_SECRET_KEY=minioadmin
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #     minio:
-  #       condition: service_healthy
-  #   volumes:
-  #     - ../pipeline:/app
-  #   command: python -m workers.runner
+  pipeline-worker:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.pipeline
+    environment:
+      - DATABASE_URL=postgresql://veloworld:veloworld@postgres:5432/veloworld?sslmode=disable&connect_timeout=10
+      - REDIS_URL=redis://redis:6379
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - ../pipeline:/app
+    command: python -m workers.runner
 
   api-backend:
     build:
       context: ..
       dockerfile: infra/Dockerfile.backend
     environment:
-      - DATABASE_URL=postgresql://veloworld:veloworld@postgres:5432/veloworld
+      - DATABASE_URL=postgresql://veloworld:veloworld@postgres:5432/veloworld?sslmode=disable&connect_timeout=10
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=development-secret-key-change-in-production
       - S3_ENDPOINT=http://minio:9000

@@ -63,6 +63,7 @@
     <div class="container">
         <h1>🚴 VeloWorld</h1>
         <p>Cycling Simulator - Upload routes and start riding!</p>
+        <p><a href="/demo.html" style="color:#007bff;">Open Dedicated Demo Page</a></p>
 
         <!-- Authentication Section -->
         <div id="auth-section" class="auth-section">
@@ -93,7 +94,7 @@
             </div>
             <div class="form-group">
                 <label for="route-file">GPX File:</label>
-                <input type="file" id="route-file" accept=".gpx,.fit,.tcx" required>
+                <input type="file" id="route-file" accept=".gpx,.fit,.fits,.tcx" required>
             </div>
             <button onclick="uploadRoute()">Upload Route</button>
             <p id="upload-message"></p>
@@ -102,14 +103,52 @@
         <!-- Routes Section -->
         <div id="routes-section" class="routes-section hidden">
             <h2>Your Routes</h2>
-            <button onclick="loadRoutes()">Refresh Routes</button>
-            <div id="routes-list"></div>
+            <div id="routes-list">
+                <p>No routes yet. Upload your first route!</p>
+            </div>
+        </div>
+
+        <!-- Demo Section -->
+        <div id="demo-section" class="routes-section hidden">
+            <h2>🚴 Demo Ride Simulator</h2>
+            <div class="form-group">
+                <label for="demo-toggle">Enable Demo Mode:</label>
+                <input type="checkbox" id="demo-toggle" onchange="toggleDemo()">
+            </div>
+            <div id="demo-controls" class="hidden">
+                <div class="form-group">
+                    <label for="power-slider">Power Output (Watts):</label>
+                    <input type="range" id="power-slider" min="0" max="400" value="150" oninput="updatePower(this.value)">
+                    <span id="power-value">150</span> W
+                </div>
+                <div class="form-group">
+                    <label for="time-multiplier">Time Multiplier:</label>
+                    <select id="time-multiplier">
+                        <option value="1">1x</option>
+                        <option value="2">2x</option>
+                        <option value="5">5x</option>
+                        <option value="10">10x</option>
+                    </select>
+                </div>
+                <div id="demo-display">
+                    <h3>Elevation Profile</h3>
+                    <canvas id="elevation-canvas" width="800" height="200" style="border: 1px solid #ddd;"></canvas>
+                    <div id="hud">
+                        <p>Distance: <span id="distance">0.0</span> km</p>
+                        <p>Speed: <span id="speed">0.0</span> km/h</p>
+                        <p>Power: <span id="current-power">150</span> W</p>
+                        <p>Grade: <span id="grade">0.0</span>%</p>
+                        <p>Time: <span id="time">00:00</span></p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
         const API_BASE = 'http://localhost:8080';
         let authToken = localStorage.getItem('veloworld_token');
+        let selectedRoute = null;
 
         // Check if already logged in
         if (authToken) {
@@ -183,6 +222,7 @@
             document.getElementById('auth-section').classList.add('hidden');
             document.getElementById('upload-section').classList.remove('hidden');
             document.getElementById('routes-section').classList.remove('hidden');
+            document.getElementById('demo-section').classList.remove('hidden');
             loadRoutes();
         }
 
@@ -244,6 +284,7 @@
         }
 
         function displayRoutes(routes) {
+            window.cachedRoutes = routes;
             const container = document.getElementById('routes-list');
 
             if (routes.length === 0) {
@@ -257,6 +298,7 @@
                     <p>${route.description || 'No description'}</p>
                     <p>Distance: ${route.distance_m ? (route.distance_m / 1000).toFixed(1) + ' km' : 'Unknown'}</p>
                     <p>Elevation Gain: ${route.elevation_gain_m ? route.elevation_gain_m.toFixed(0) + ' m' : 'Unknown'}</p>
+                    <p>Avg Grade: ${calculateAverageGrade(route.distance_m, route.elevation_gain_m)}</p>
                     <p>Status: <span class="status-${route.processing_status}">${route.processing_status}</span></p>
                     <p>Created: ${new Date(route.created_at).toLocaleDateString()}</p>
                     ${route.processing_status === 'ready' ? '<button onclick="startRide(\'' + route.id + '\')">Start Ride</button>' : ''}
@@ -264,13 +306,255 @@
             `).join('');
         }
 
-        function startRide(routeId) {
-            // For MVP, this would launch the Unreal Engine client
-            // For now, just show a message
-            alert(`Starting ride for route ${routeId}. In the full app, this would launch the 3D cycling simulator!`);
+        function calculateAverageGrade(distanceM, elevationGainM) {
+            if (!distanceM || !elevationGainM || distanceM <= 0) {
+                return 'Unknown';
+            }
+            return ((elevationGainM / distanceM) * 100).toFixed(2) + '%';
         }
 
+        async function startRide(routeId) {
+            const route = window.cachedRoutes?.find(r => r.id === routeId);
+            if (!route) {
+                alert('Route not found. Please refresh routes and try again.');
+                return;
+            }
+
+            selectedRoute = route;
+            const loaded = await loadRenderData(route.id);
+            if (!loaded) {
+                return;
+            }
+            const toggle = document.getElementById('demo-toggle');
+            if (!toggle.checked) {
+                toggle.checked = true;
+                toggleDemo();
+            } else {
+                startDemo();
+            }
+        }
+
+        let demoInterval = null;
+        let demoPosition = 0;
+        let demoElapsedSeconds = 0;
+        let demoLastTickMs = 0;
+        const demoRoute = {
+            distance: 10000, // 10km in meters
+            profilePoints: generateFallbackProfile(10000, 180)
+        };
+
+        function toggleDemo() {
+            const isEnabled = document.getElementById('demo-toggle').checked;
+            const controls = document.getElementById('demo-controls');
+            if (isEnabled) {
+                controls.classList.remove('hidden');
+                startDemo();
+            } else {
+                controls.classList.add('hidden');
+                stopDemo();
+            }
+        }
+
+        function updatePower(value) {
+            document.getElementById('power-value').textContent = value;
+            document.getElementById('current-power').textContent = value;
+        }
+
+        function startDemo() {
+            stopDemo();
+            demoPosition = 0;
+            demoElapsedSeconds = 0;
+            demoLastTickMs = Date.now();
+            drawElevationProfile();
+            demoInterval = setInterval(updateDemo, 100); // Update every 100ms
+        }
+
+        function stopDemo() {
+            if (demoInterval) {
+                clearInterval(demoInterval);
+                demoInterval = null;
+            }
+        }
+
+        function updateDemo() {
+            const power = parseInt(document.getElementById('power-slider').value);
+            const nowMs = Date.now();
+            const realDt = Math.max(0.05, (nowMs - demoLastTickMs) / 1000);
+            demoLastTickMs = nowMs;
+            const timeMultiplier = parseFloat(document.getElementById('time-multiplier').value || '1');
+            const simDt = realDt * timeMultiplier;
+            demoElapsedSeconds += simDt;
+
+            const gradePercent = getGradePercent(demoPosition);
+            const speed = calculateSpeed(power, gradePercent); // km/h
+            demoPosition += (speed / 3.6) * simDt; // m/s * s
+
+            if (demoPosition >= demoRoute.distance) {
+                demoPosition = demoRoute.distance;
+                stopDemo();
+            }
+
+            updateHUD(demoPosition, speed, demoElapsedSeconds, gradePercent);
+            drawElevationProfile();
+        }
+
+        function calculateSpeed(power, gradePercent) {
+            // Solve P = v * (rolling + gravity + aero) using binary search.
+            const mass = 82.0; // rider + bike (kg)
+            const g = 9.81;
+            const crr = 0.005;
+            const rhoCdA = 0.32;
+            const drivetrainEfficiency = 0.97;
+            const usablePower = Math.max(0, power) * drivetrainEfficiency;
+            const slope = gradePercent / 100.0;
+
+            let lo = 0.0;
+            let hi = 30.0; // m/s upper bound
+            for (let i = 0; i < 35; i++) {
+                const v = (lo + hi) / 2;
+                const rollingForce = mass * g * crr;
+                const gravityForce = mass * g * slope;
+                const aeroForce = rhoCdA * v * v;
+                const totalForce = Math.max(0.0, rollingForce + gravityForce + aeroForce);
+                const estimatedPower = totalForce * v;
+                if (estimatedPower > usablePower) {
+                    hi = v;
+                } else {
+                    lo = v;
+                }
+            }
+
+            return Math.max(3.0, Math.min(80.0, lo * 3.6));
+        }
+
+        function updateHUD(distance, speed, timeElapsed, gradePercent) {
+            document.getElementById('distance').textContent = (distance / 1000).toFixed(1);
+            document.getElementById('speed').textContent = speed.toFixed(1);
+            document.getElementById('grade').textContent = gradePercent.toFixed(1);
+            const minutes = Math.floor(timeElapsed / 60);
+            const seconds = Math.floor(timeElapsed % 60);
+            document.getElementById('time').textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function drawElevationProfile() {
+            const canvas = document.getElementById('elevation-canvas');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+
+            // Clear canvas
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw elevation profile
+            ctx.strokeStyle = '#007bff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const points = demoRoute.profilePoints;
+            if (!points || points.length < 2) {
+                return;
+            }
+            const elevations = points.map(p => p.elevation_m);
+            const minElevation = Math.min(...elevations);
+            const maxElevation = Math.max(...elevations);
+            const elevationSpan = Math.max(1, maxElevation - minElevation);
+            for (let i = 0; i < points.length; i++) {
+                const x = (points[i].distance_m / demoRoute.distance) * width;
+                const normalized = (points[i].elevation_m - minElevation) / elevationSpan;
+                const y = height - normalized * (height - 20) - 10;
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+
+            // Draw rider position
+            const riderX = (demoPosition / demoRoute.distance) * width;
+            const riderElevation = getElevationAtDistance(demoPosition);
+            const riderNormalized = (riderElevation - minElevation) / elevationSpan;
+            const riderY = height - riderNormalized * (height - 20) - 10;
+
+            ctx.fillStyle = '#ff0000';
+            ctx.beginPath();
+            ctx.arc(riderX, riderY, 5, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        function generateFallbackProfile(distanceMeters, elevationGainMeters) {
+            const pointCount = 32;
+            const baseElevation = 100;
+            const profile = [];
+            for (let i = 0; i < pointCount; i++) {
+                const ratio = i / (pointCount - 1);
+                const rolling = Math.sin(ratio * Math.PI * 3) * (elevationGainMeters * 0.15);
+                const climb = Math.sin(ratio * Math.PI) * elevationGainMeters;
+                profile.push({
+                    distance_m: ratio * distanceMeters,
+                    elevation_m: baseElevation + climb + rolling
+                });
+            }
+            return profile;
+        }
+
+        function getElevationAtDistance(distanceMeters) {
+            const points = demoRoute.profilePoints;
+            if (!points || points.length === 0) return 100;
+            if (distanceMeters <= 0) return points[0].elevation_m;
+            if (distanceMeters >= demoRoute.distance) return points[points.length - 1].elevation_m;
+
+            for (let i = 1; i < points.length; i++) {
+                if (distanceMeters <= points[i].distance_m) {
+                    const prev = points[i - 1];
+                    const next = points[i];
+                    const range = next.distance_m - prev.distance_m || 1;
+                    const t = (distanceMeters - prev.distance_m) / range;
+                    return prev.elevation_m + (next.elevation_m - prev.elevation_m) * t;
+                }
+            }
+
+            return points[points.length - 1].elevation_m;
+        }
+
+        function getGradePercent(distanceMeters) {
+            const lookAheadM = 12.0;
+            const currentElevation = getElevationAtDistance(distanceMeters);
+            const nextElevation = getElevationAtDistance(Math.min(demoRoute.distance, distanceMeters + lookAheadM));
+            return ((nextElevation - currentElevation) / lookAheadM) * 100.0;
+        }
+
+        async function loadRenderData(routeId) {
+            try {
+                const response = await fetch(`${API_BASE}/routes/${routeId}/render-data`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const bodyText = await response.text();
+                let data = {};
+                try {
+                    data = bodyText ? JSON.parse(bodyText) : {};
+                } catch (_) {
+                    data = { error: bodyText || 'Unexpected response' };
+                }
+                if (!response.ok) {
+                    alert(data.error || 'Route render data not ready yet. Wait for processing to finish.');
+                    return false;
+                }
+
+                demoRoute.distance = data.distance_m || 10000;
+                demoRoute.profilePoints = (data.profile_points && data.profile_points.length > 1)
+                    ? data.profile_points
+                    : generateFallbackProfile(demoRoute.distance, data.elevation_gain_m || 180);
+                return true;
+            } catch (error) {
+                alert('Failed to load route render data from API.');
+                return false;
+            }
+        }
+        window.cachedRoutes = [];
+
         function logout() {
+            stopDemo();
             localStorage.removeItem('veloworld_token');
             authToken = null;
             location.reload();

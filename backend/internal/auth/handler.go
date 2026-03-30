@@ -32,10 +32,19 @@ type LoginRequest struct {
 }
 
 type User struct {
-	ID    uuid.UUID `json:"id"`
-	Email string    `json:"email"`
-	Name  *string   `json:"name,omitempty"`
-	Bio   *string   `json:"bio,omitempty"`
+	ID            uuid.UUID `json:"id"`
+	Email         string    `json:"email"`
+	Name          *string   `json:"name,omitempty"`
+	Bio           *string   `json:"bio,omitempty"`
+	RiderWeightKg float64   `json:"rider_weight_kg"`
+	FtpW          float64   `json:"ftp_w"`
+}
+
+type UpdateProfileRequest struct {
+	Name          *string  `json:"name"`
+	Bio           *string  `json:"bio"`
+	RiderWeightKg *float64 `json:"rider_weight_kg"`
+	FtpW          *float64 `json:"ftp_w"`
 }
 
 type Claims struct {
@@ -142,13 +151,16 @@ func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	var email string
 	var name sql.NullString
 	var bio sql.NullString
-	err := h.DB.QueryRow("SELECT email, name, bio FROM users WHERE id = $1", userID).Scan(&email, &name, &bio)
+	var riderWeightKg float64
+	var ftpW float64
+	err := h.DB.QueryRow("SELECT email, name, bio, rider_weight_kg, ftp_w FROM users WHERE id = $1", userID).
+		Scan(&email, &name, &bio, &riderWeightKg, &ftpW)
 	if err != nil {
 		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
 
-	user := User{ID: userID, Email: email}
+	user := User{ID: userID, Email: email, RiderWeightKg: riderWeightKg, FtpW: ftpW}
 	if name.Valid {
 		user.Name = &name.String
 	}
@@ -157,6 +169,44 @@ func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
+}
+
+func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("user_id").(uuid.UUID)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var req UpdateProfileRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.RiderWeightKg != nil && (*req.RiderWeightKg < 35 || *req.RiderWeightKg > 250) {
+		http.Error(w, "Rider weight must be between 35kg and 250kg", http.StatusBadRequest)
+		return
+	}
+	if req.FtpW != nil && (*req.FtpW < 80 || *req.FtpW > 600) {
+		http.Error(w, "FTP must be between 80W and 600W", http.StatusBadRequest)
+		return
+	}
+
+	_, err := h.DB.Exec(`
+		UPDATE users
+		SET name = COALESCE($1, name),
+			bio = COALESCE($2, bio),
+			rider_weight_kg = COALESCE($3, rider_weight_kg),
+			ftp_w = COALESCE($4, ftp_w)
+		WHERE id = $5`,
+		req.Name, req.Bio, req.RiderWeightKg, req.FtpW, userID)
+	if err != nil {
+		http.Error(w, "Failed to update profile", http.StatusInternalServerError)
+		return
+	}
+
+	h.GetCurrentUser(w, r)
 }
 
 func (h *Handler) generateToken(userID uuid.UUID, email string) (string, error) {

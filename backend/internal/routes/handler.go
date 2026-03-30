@@ -40,6 +40,34 @@ type UploadRouteRequest struct {
 	Description string `json:"description,omitempty"`
 }
 
+type RenderPoint struct {
+	DistanceM  float64 `json:"distance_m"`
+	ElevationM float64 `json:"elevation_m"`
+	Lat        float64 `json:"lat,omitempty"`
+	Lon        float64 `json:"lon,omitempty"`
+}
+
+type RouteRenderDataResponse struct {
+	RouteID        uuid.UUID     `json:"route_id"`
+	DistanceM      float64       `json:"distance_m"`
+	ElevationGainM float64       `json:"elevation_gain_m"`
+	ProfilePoints  []RenderPoint `json:"profile_points"`
+}
+
+type routeRenderCachePayload struct {
+	RouteID        string       `json:"route_id"`
+	DistanceM      float64      `json:"distance_m"`
+	ElevationGainM float64      `json:"elevation_gain_m"`
+	ProfilePoints  []RenderPoint `json:"profile_points"`
+}
+
+func normalizeSourceFormat(format string) string {
+	if format == "fits" {
+		return "fit"
+	}
+	return format
+}
+
 func NewHandler(db *sql.DB, redis *redis.Client, storage *storage.S3Storage, queue *queue.JobQueue) *Handler {
 	return &Handler{
 		DB:      db,
@@ -72,8 +100,8 @@ func (h *Handler) UploadRoute(w http.ResponseWriter, r *http.Request) {
 
 	// Validate file extension
 	ext := strings.ToLower(filepath.Ext(header.Filename))
-	if ext != ".gpx" && ext != ".fit" && ext != ".tcx" {
-		http.Error(w, "Unsupported file format. Use GPX, FIT, or TCX", http.StatusBadRequest)
+	if ext != ".gpx" && ext != ".fit" && ext != ".fits" && ext != ".tcx" {
+		http.Error(w, "Unsupported file format. Use GPX, FIT/FITS, or TCX", http.StatusBadRequest)
 		return
 	}
 
@@ -111,7 +139,7 @@ func (h *Handler) UploadRoute(w http.ResponseWriter, r *http.Request) {
 	_, err = h.DB.Exec(`
 		INSERT INTO routes (id, owner_id, name, description, distance_m, elevation_gain_m, source_format, s3_key, processing_status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'queued')`,
-		routeID, userID, name, description, 0.0, nil, ext[1:], s3Key) // Remove the dot from extension
+		routeID, userID, name, description, 0.0, nil, normalizeSourceFormat(ext[1:]), s3Key) // Remove the dot from extension
 	if err != nil {
 		// If database insert fails, delete the S3 file
 		h.Storage.DeleteRouteFile(s3Key)
@@ -120,7 +148,7 @@ func (h *Handler) UploadRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Queue processing job
-	err = h.Queue.EnqueueRouteProcessing(r.Context(), routeID, s3Key, ext[1:])
+	err = h.Queue.EnqueueRouteProcessing(r.Context(), routeID, s3Key, normalizeSourceFormat(ext[1:]))
 	if err != nil {
 		// If queuing fails, delete the route record and S3 file
 		h.DB.Exec("DELETE FROM routes WHERE id = $1", routeID)
@@ -359,4 +387,85 @@ func (h *Handler) GetRoutePackage(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: Return streaming package definition from S3/Redis
 	http.Error(w, "Package retrieval not implemented", http.StatusNotImplemented)
+}
+
+func (h *Handler) GetRouteRenderData(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("user_id").(uuid.UUID)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	routeID, err := uuid.Parse(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid route ID", http.StatusBadRequest)
+		return
+	}
+
+	var distanceM float64
+	var elevationGain sql.NullFloat64
+	var processingStatus string
+	err = h.DB.QueryRow(`
+		SELECT distance_m, elevation_gain_m, processing_status
+		FROM routes
+		WHERE id = $1 AND owner_id = $2`,
+		routeID, userID).Scan(&distanceM, &elevationGain, &processingStatus)
+	if err == sql.ErrNoRows {
+		http.Error(w, "Route not found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	if processingStatus != "ready" {
+		http.Error(w, fmt.Sprintf("Route processing not complete: %s", processingStatus), http.StatusBadRequest)
+		return
+	}
+
+	if distanceM <= 0 {
+		distanceM = 10000
+	}
+	elevGain := 180.0
+	if elevationGain.Valid && elevationGain.Float64 > 0 {
+		elevGain = elevationGain.Float64
+	}
+
+	redisKey := fmt.Sprintf("route_render:%s", routeID.String())
+	cachedRenderJSON, redisErr := h.Redis.Get(r.Context(), redisKey).Result()
+	if redisErr == nil && cachedRenderJSON != "" {
+		var cachedResp routeRenderCachePayload
+		if err := json.Unmarshal([]byte(cachedRenderJSON), &cachedResp); err == nil {
+			resp := RouteRenderDataResponse{
+				RouteID:        routeID,
+				DistanceM:      cachedResp.DistanceM,
+				ElevationGainM: cachedResp.ElevationGainM,
+				ProfilePoints:  cachedResp.ProfilePoints,
+			}
+			if resp.DistanceM <= 0 {
+				resp.DistanceM = distanceM
+			}
+			if resp.ElevationGainM <= 0 {
+				resp.ElevationGainM = elevGain
+			}
+			if len(resp.ProfilePoints) < 2 {
+				resp.ProfilePoints = []RenderPoint{{DistanceM: 0, ElevationM: 100}, {DistanceM: resp.DistanceM, ElevationM: 100 + resp.ElevationGainM}}
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+	}
+
+	resp := RouteRenderDataResponse{
+		RouteID:        routeID,
+		DistanceM:      distanceM,
+		ElevationGainM: elevGain,
+		ProfilePoints:  []RenderPoint{{DistanceM: 0, ElevationM: 100}, {DistanceM: distanceM, ElevationM: 100 + elevGain}},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
 }
