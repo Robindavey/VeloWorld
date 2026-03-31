@@ -46,7 +46,7 @@ function stop() {
   fi
 
   echo "Stopping docker-compose stack..."
-  docker-compose -f "$INFRA_DIR/docker-compose.yml" down -v
+  docker-compose -f "$INFRA_DIR/docker-compose.yml" down
   echo "Stopped all components."
 }
 
@@ -72,8 +72,8 @@ function help() {
 Usage: $0 <command>
 Commands:
   start     Start docker-compose stack and frontend (HTTPS if certs present)
-  stop      Stop frontend and bring down docker-compose
-  restart   Stop then start
+  stop      Stop frontend and bring down docker-compose (preserves database)
+  restart   Stop then start (preserves database)
   status    Show docker-compose and frontend server status
   help      Show this help
 EOF

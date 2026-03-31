@@ -93,12 +93,12 @@
                     body: JSON.stringify({ email, password, name, bio })
                 });
 
-                const data = await response.json();
-
                 if (response.ok) {
+                    const data = await response.json();
                     document.getElementById('auth-message').textContent = 'Registration successful! Please login.';
                 } else {
-                    document.getElementById('auth-message').textContent = data.error || 'Registration failed';
+                    const errorText = await response.text();
+                    document.getElementById('auth-message').textContent = errorText || 'Registration failed';
                 }
             } catch (error) {
                 document.getElementById('auth-message').textContent = 'Network error';

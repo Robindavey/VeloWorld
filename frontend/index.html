@@ -166,15 +166,15 @@
                     body: JSON.stringify({ email, password })
                 });
 
-                const data = await response.json();
-
                 if (response.ok) {
+                    const data = await response.json();
                     authToken = data.token;
                     localStorage.setItem('veloworld_token', authToken);
                     showLoggedIn();
                     document.getElementById('auth-message').textContent = 'Login successful!';
                 } else {
-                    document.getElementById('auth-message').textContent = data.error || 'Login failed';
+                    const errorText = await response.text();
+                    document.getElementById('auth-message').textContent = errorText || 'Login failed';
                 }
             } catch (error) {
                 document.getElementById('auth-message').textContent = 'Network error';
@@ -204,13 +204,14 @@
                 console.log('Response status:', response.status);
                 console.log('Response ok:', response.ok);
 
-                const data = await response.json();
-                console.log('Response data:', data);
-
                 if (response.ok) {
+                    const data = await response.json();
+                    console.log('Response data:', data);
                     document.getElementById('auth-message').textContent = 'Registration successful! Please login.';
                 } else {
-                    document.getElementById('auth-message').textContent = data.error || 'Registration failed';
+                    const errorText = await response.text();
+                    console.log('Error text:', errorText);
+                    document.getElementById('auth-message').textContent = errorText || 'Registration failed';
                 }
             } catch (error) {
                 console.error('Network error:', error);
