@@ -2,39 +2,45 @@
 
 ## Completed This Session
 
-- Added optional live hardware power input to dedicated demo page `frontend/demo.html`.
-- New power source selector in top bar:
-  - `Manual Slider`
-  - `Power Meter / Trainer`
-- Added `Connect Device` flow using Web Bluetooth:
-  - Tries Cycling Power service (`cycling_power`) first.
-  - Falls back to Fitness Machine service (`fitness_machine`, Indoor Bike Data 0x2AD2).
-- Live power from connected device now drives simulation speed/HUD.
-- When hardware source is selected, manual power slider is disabled.
-- Added device status label in UI (`Manual`, `Connected`, `Connection failed`, etc.).
+- Added rider profile metrics to backend with defaults:
+  - `rider_weight_kg` default `75.0`
+  - `ftp_w` default `210.0`
+- New migration:
+  - `backend/db/migrations/003_add_rider_metrics.sql`
+- Added profile update API:
+  - `PUT /auth/profile`
+  - Existing `GET /auth/me` now returns weight + FTP
+- Extended render profile point model to include geolocation:
+  - `lat`, `lon` now flow in render-data points
+- Pipeline worker now stores route render profile with lat/lon in Redis:
+  - key `route_render:{route_id}`
+- Created a dedicated demo page:
+  - `frontend/demo.html`
+  - route dropdown for ready routes
+  - satellite imagery map (Esri World Imagery via Leaflet)
+  - moving rider dot following true route lat/lon
+  - collapsible/expandable side panel for elevation chart
+  - upgraded HUD with speed, grade, power, distance, time, power zone
+  - rider profile editor (weight/FTP) on-page, saved via API
+  - time multiplier control for long routes
+- Added entry link from `frontend/index.html` to `demo.html`
+- Updated `scripts/dev.sh` migration runner to include migration `003`
 
-## Current Demo Behavior
+## Runtime Status
 
-- Manual mode still works exactly as before.
-- Device mode uses latest received power value from BLE notifications.
-- HUD and power zones use whichever power source is active.
-
-## Notes / Constraints
-
-- Web Bluetooth requires a compatible browser (Chrome/Edge) and secure context (`localhost` is OK).
-- Actual BLE service/characteristic support varies by trainer/power meter firmware.
-- FTMS Indoor Bike Data parsing currently includes a common subset with instantaneous power.
+- DB migration `003` applied.
+- Backend rebuilt + running.
+- Pipeline worker rebuilt + running.
+- API health endpoint OK.
 
 ## Next Tasks
 
-1. Add reconnect/disconnect button and device forget behavior.
-2. Add signal timeout fallback (if no BLE packets for N seconds, hold/decay power safely).
-3. Add ANT+ bridge option (outside browser via local bridge service) for broader device support.
-4. Add inline troubleshooting panel for BLE permissions/service discovery failures.
+1. Add route status auto-polling on `demo.html` and `index.html` until ready.
+2. Add min/max smoothing for grade calculation to reduce jitter on noisy GPS elevation.
+3. Add optional map source selector (Esri/OSM/Topo).
+4. Add reset-to-start and scrub/seek controls on demo timeline.
+5. Persist render profile to durable storage (S3/DB) and use Redis as cache only.
 
 ## Session Rule
 
-Always update `prompts/nextPrompt.md` at the end of each session with:
-- what changed,
-- what is running,
-- what to do next.
+Always update `prompts/nextPrompt.md` at the end of each session with latest completed work + next tasks.

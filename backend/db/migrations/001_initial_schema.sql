@@ -6,6 +6,10 @@ CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
+    name TEXT,
+    bio TEXT,
+    rider_weight_kg FLOAT DEFAULT 70.0,
+    ftp_w FLOAT DEFAULT 200.0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
