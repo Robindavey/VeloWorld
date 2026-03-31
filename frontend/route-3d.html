@@ -230,29 +230,67 @@
             }
             if (pts.length < 2) return;
 
-            const curve = new THREE.CatmullRomCurve3(pts);
-            const geometry = new THREE.TubeGeometry(curve, Math.max(100, pts.length * 2), 4, 16, false);
-
-            // Road gradient coloring by elevation slope
+            // Generate realistic road strip instead of tube
+            const roadWidth = 6;
+            const roadGeom = new THREE.BufferGeometry();
+            const positions = [];
             const colors = [];
-            const cAttr = new THREE.Color();
-            for (let i = 0; i < geometry.attributes.position.count; i++) {
-                const fi = Math.floor(i / 3);
-                const grade = grades[Math.min(grades.length - 1, Math.max(0, fi))];
-                if (grade > 5) cAttr.set(0xff4500); else if (grade > 2) cAttr.set(0xffaa00); else if (grade > -2) cAttr.set(0x497afb); else cAttr.set(0x24c6f2);
-                colors.push(cAttr.r, cAttr.g, cAttr.b);
+            const normals = [];
+
+            for (let i = 0; i < pts.length; i++) {
+                const point = pts[i];
+                let tangent;
+                if (i < pts.length - 1) {
+                    tangent = pts[i + 1].clone().sub(point).normalize();
+                } else {
+                    tangent = point.clone().sub(pts[i - 1]).normalize();
+                }
+                const left = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), tangent).normalize().multiplyScalar(roadWidth / 2);
+
+                const leftPt = point.clone().add(left);
+                const rightPt = point.clone().sub(left);
+                const slope = grades[i] || 0;
+                const c = new THREE.Color();
+                if (slope > 5) c.set(0xff4500); else if (slope > 2) c.set(0xffaa00); else if (slope > -2) c.set(0x333333); else c.set(0x497afb);
+
+                // two vertices per row
+                positions.push(leftPt.x, leftPt.y + 0.01, leftPt.z);
+                positions.push(rightPt.x, rightPt.y + 0.01, rightPt.z);
+                colors.push(c.r, c.g, c.b);
+                colors.push(c.r, c.g, c.b);
+                normals.push(0, 1, 0); normals.push(0, 1, 0);
             }
-            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+            const indices = [];
+            for (let i = 0; i < pts.length - 1; i++) {
+                const idx = i * 2;
+                indices.push(idx, idx + 1, idx + 2);
+                indices.push(idx + 2, idx + 1, idx + 3);
+            }
+
+            roadGeom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            roadGeom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            roadGeom.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+            roadGeom.setIndex(indices);
+            roadGeom.computeVertexNormals();
 
             const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
-            state.path = new THREE.Mesh(geometry, material);
+            state.path = new THREE.Mesh(roadGeom, material);
             state.scene.add(state.path);
 
-            // Add border rails for perspective
-            const borderMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 });
-            const borderPoints = pts.map(p => p.clone().add(new THREE.Vector3(0, 0.1, 0)));
-            const borderGeometry = new THREE.BufferGeometry().setFromPoints(borderPoints);
-            state.pathBorder = new THREE.Line(borderGeometry, borderMaterial);
+            // Add simple edge lines for visibility
+            const edgeMat = new THREE.LineBasicMaterial({ color: 0xffffff });
+            const edgePts = [];
+            for (let i = 0; i < pts.length; i++) {
+                const p = pts[i];
+                let tangent;
+                if (i < pts.length - 1) tangent = pts[i + 1].clone().sub(p).normalize();
+                else tangent = p.clone().sub(pts[i - 1]).normalize();
+                const left = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), tangent).normalize().multiplyScalar(roadWidth / 2);
+                edgePts.push(p.clone().add(left));
+            }
+            const edgeGeo = new THREE.BufferGeometry().setFromPoints(edgePts);
+            state.pathBorder = new THREE.Line(edgeGeo, edgeMat);
             state.scene.add(state.pathBorder);
         }
 
@@ -379,7 +417,7 @@
             document.getElementById('progressSlider').value = state.distanceM ? (state.positionM / state.distanceM * 100).toFixed(1) : 0;
             // Update road segment to show only ahead
             const segmentStart = Math.max(0, state.positionM - 20);
-            const segmentEnd = Math.min(state.distanceM, state.positionM + 2000);
+            const segmentEnd = Math.min(state.distanceM, state.positionM + 1000);
             createPath(segmentStart, segmentEnd);
             state.animationId = requestAnimationFrame(animate3D);
         }
@@ -415,7 +453,7 @@
             state.positionM = Math.min(state.distanceM, Math.max(0, percent / 100 * state.distanceM));
             updateRider(state.positionM);
             updateStats();
-            createPath(state.positionM, Math.min(state.distanceM, state.positionM + 2000));
+            createPath(Math.max(0, state.positionM - 20), Math.min(state.distanceM, state.positionM + 1000));
         }
 
         function calculateSpeed(power, gradePercent, weightKg) {
