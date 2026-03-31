@@ -41,6 +41,13 @@
 4. Add reset-to-start and scrub/seek controls on demo timeline.
 5. Persist render profile to durable storage (S3/DB) and use Redis as cache only.
 
+## Latest Work (31 March 2026)
+
+- Fixed `createRoadsideProps` syntax error in `frontend/route-3d.html`.
+- Implemented densify fallback for sparse route render payloads to avoid only-start point.
+- Increased roadside propagation frequency (`i += 3` and cluster every 15 points) for richer tree/rock coverage.
+- Retained gradient path coloring and camera follow after patch.
+
 ## Session Rule
 
 Always update `prompts/nextPrompt.md` at the end of each session with latest completed work + next tasks.

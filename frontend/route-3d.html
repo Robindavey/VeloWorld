@@ -8,12 +8,54 @@
         body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); color: #f0f6fc; }
         .topbar { background:#161b22; border-bottom:1px solid #30363d; padding:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
         .topbar a, .topbar select, .topbar button { color:#f0f6fc; background:#0d1117; border:1px solid #30363d; border-radius:5px; padding:6px 10px; text-decoration:none; }
-        .main { display:grid; grid-template-columns: 2fr 1fr; gap: 10px; padding:10px; height: calc(100vh - 56px); }
-        #scene, #trackCanvas { width: 100%; height: 100%; border: 1px solid #30363d; border-radius: 8px; background:#0d1117; }
+        .main { display:grid; grid-template-columns: 1fr; gap: 10px; padding:10px; height: calc(100vh - 56px); }
+        #scene { width: 100%; height: 100%; border: 1px solid #30363d; border-radius: 8px; background:#0d1117; }
+        #trackCanvas { width: 100%; height: 100%; border: 1px solid #30363d; border-radius: 8px; background:#0d1117; }
         .panel { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:10px; overflow:auto; }
         .label { font-size:11px; color:#8b949e; }
         .status { margin-top: 6px; color:#58a6ff; }
         .slider { width: 100%; }
+
+        #hudOverlay {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            min-width: 200px;
+            background: rgba(13, 17, 23, 0.8);
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 10px;
+            z-index: 1001;
+            color: #f0f6fc;
+            font-size: 13px;
+        }
+
+        #elevationOverlay {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            width: 320px;
+            height: 160px;
+            background: rgba(13, 17, 23, 0.85);
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 8px;
+            z-index: 1001;
+            color: #f0f6fc;
+            font-size: 12px;
+        }
+
+        #controlOverlay {
+            position: absolute;
+            top: 190px;
+            left: 14px;
+            background: rgba(13, 17, 23, 0.85);
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 8px;
+            z-index: 1001;
+            width: 280px;
+        }
     </style>
 </head>
 <body>
@@ -40,22 +82,25 @@
         <strong>Web Bluetooth requires a secure context (HTTPS).</strong>
         If you see a "use https" message, serve the demo from <code>localhost</code> or use HTTPS (mkcert/ngrok), or launch Chrome with the insecure-origin flag for testing. See the console for quick commands.
     </div>
+    <div id="hudOverlay">
+        <h4>HUD</h4>
+        <div id="gradientLabel">Gradient: -</div>
+        <div id="distanceLabel">Distance: 0.0 km</div>
+        <div id="speedLabel">Speed: 0.0 km/h</div>
+        <div id="powerLabel">Power: 160 W</div>
+        <div><strong>Route:</strong> <span id="routeName">none</span></div>
+    </div>
+    <div id="elevationOverlay">
+        <div style="margin-bottom:8px;">Elevation / Gradient</div>
+        <canvas id="trackCanvas" width="300" height="120"></canvas>
+    </div>
+    <div id="controlOverlay">
+        <p class="label">Use this slider to jump along route:</p>
+        <input id="progressSlider" class="slider" type="range" min="0" max="100" value="0" oninput="seekRoute(this.value)" />
+        <div style="margin-top:6px;"><span id="runState">Stopped</span></div>
+    </div>
     <div class="main">
-        <div class="panel">
-            <h3>3D Route Animation</h3>
-            <div id="scene"></div>
-            <p class="label">Use the slider to jump along the route.</p>
-            <input id="progressSlider" class="slider" type="range" min="0" max="100" value="0" onchange="seekRoute(this.value)" />
-            <p id="gradientLabel">Gradient: -</p>
-            <p id="distanceLabel">Distance: 0.0 km</p>
-            <p id="speedLabel">Speed: 0.0 km/h</p>
-            <p id="powerLabel">Power: 160 W</p>
-        </div>
-        <div class="panel">
-            <h3>Elevation Profile</h3>
-            <canvas id="trackCanvas" width="400" height="360"></canvas>
-            <p class="label">Gradient profile (hill: red, flat: green, descent: blue).</p>
-        </div>
+        <div id="scene"></div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -77,11 +122,15 @@
             renderer: null,
             riderMesh: null,
             path: null,
+            pathBorder: null,
+            roadsideObjects: [],
+            lastPathRebuildM: 0,
             controls: null,
             lastFrame: 0,
             speedKmh: 0,
             routeOrigin: { lat: 0, lon: 0 },
             scale: 1,
+            gradientExaggeration: 2.5,
             riderProfile: { weightKg: 75, ftpW: 210 },
             powerSource: "manual",
             livePowerW: 160,
@@ -189,12 +238,17 @@
 
                 state.profile = data.profile_points || [];
                 state.distanceM = data.distance_m || 0;
+                if (!state.profile || state.profile.length < 12) {
+                    state.profile = densifyProfile(state.profile, state.distanceM, 520);
+                }
                 state.positionM = 0;
                 state.route = data;
+                document.getElementById('routeName').textContent = data.name || 'unknown';
                 state.routeOrigin = { lat: state.profile[0]?.lat || 0, lon: state.profile[0]?.lon || 0 };
                 const startM = 0;
                 const endM = Math.min(state.distanceM, 2000);
                 createPath(startM, endM);
+                createRoadsideProps(state.profile);
                 state.positionM = 0;
                 updateRider(0);
                 drawTrackCanvas();
@@ -211,8 +265,28 @@
             const metersPerLon = 111320 * Math.cos(latRad);
             const dx = (p.lon - state.routeOrigin.lon) * metersPerLon;
             const dz = (p.lat - state.routeOrigin.lat) * 111320;
-            const scale = 1; // rendered in meters directly
-            return new THREE.Vector3(dx * scale, p.elevation_m, dz * scale);
+            const y = (p.elevation_m || 0) * state.gradientExaggeration;
+            return new THREE.Vector3(dx, y, dz);
+        }
+
+        function densifyProfile(profile, distanceM, numPoints = 360) {
+            if (!profile || profile.length < 2) return profile;
+            if (profile.length >= numPoints) return profile;
+
+            const start = profile[0];
+            const end = profile[profile.length - 1];
+            const output = [];
+            for (let i = 0; i < numPoints; i++) {
+                const t = i / (numPoints - 1);
+                output.push({
+                    distance_m: distanceM * t,
+                    elevation_m: start.elevation_m + (end.elevation_m - start.elevation_m) * t,
+                    lat: start.lat + (end.lat - start.lat) * t,
+                    lon: start.lon + (end.lon - start.lon) * t,
+                    grade: (end.elevation_m - start.elevation_m) / Math.max(1, distanceM) * 100
+                });
+            }
+            return output;
         }
 
         function createPath(startM = 0, endM = state.distanceM) {
@@ -250,12 +324,25 @@
                 const leftPt = point.clone().add(left);
                 const rightPt = point.clone().sub(left);
                 const slope = grades[i] || 0;
+                const nextSlope = grades[i + 1] ?? slope;
+                const slopeAvg = (slope + nextSlope) / 2;
+                const slopeDelta = nextSlope - slope;
+
                 const c = new THREE.Color();
-                if (slope > 5) c.set(0xff4500); else if (slope > 2) c.set(0xffaa00); else if (slope > -2) c.set(0x333333); else c.set(0x497afb);
+                if (slopeAvg < 2) c.set(0x497afb); // blue
+                else if (slopeAvg < 5) c.set(0x2ecc71); // green
+                else if (slopeAvg < 8) c.set(0xffa500); // orange
+                else if (slopeAvg < 14) c.set(0xff0000); // red
+                else c.set(0x6a0dad); // purple/black
+
+                // highlight large changes
+                if (slopeDelta < -1) c.lerp(new THREE.Color(0x73b3ff), 0.2); // easing hill
+                if (slopeDelta > 1) c.lerp(new THREE.Color(0xffb3b3), 0.2); // steepening hill
 
                 // two vertices per row
-                positions.push(leftPt.x, leftPt.y + 0.01, leftPt.z);
-                positions.push(rightPt.x, rightPt.y + 0.01, rightPt.z);
+                const tiltY = slopeAvg * 0.08;
+                positions.push(leftPt.x, leftPt.y + 0.01 + tiltY, leftPt.z);
+                positions.push(rightPt.x, rightPt.y + 0.01 - tiltY, rightPt.z);
                 colors.push(c.r, c.g, c.b);
                 colors.push(c.r, c.g, c.b);
                 normals.push(0, 1, 0); normals.push(0, 1, 0);
@@ -292,6 +379,84 @@
             const edgeGeo = new THREE.BufferGeometry().setFromPoints(edgePts);
             state.pathBorder = new THREE.Line(edgeGeo, edgeMat);
             state.scene.add(state.pathBorder);
+        }
+
+        function createRoadsideProps(pathPoints) {
+            if (state.roadsideObjects) {
+                state.roadsideObjects.forEach(o => state.scene.remove(o));
+            }
+            state.roadsideObjects = [];
+            const treeGeometry = new THREE.ConeGeometry(0.5, 2.2, 8);
+            const treeMaterial = new THREE.MeshLambertMaterial({ color: 0x2f8f2f });
+            const trunkGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8);
+            const trunkMat = new THREE.MeshLambertMaterial({ color: 0x8b5a2b });
+            const rockGeo = new THREE.DodecahedronGeometry(0.6, 0);
+            const rockMat = new THREE.MeshLambertMaterial({ color: 0x707070 });
+
+            for (let i = 0; i < pathPoints.length; i += 3) {
+                const sample = pathPoints[i];
+                if (!sample || sample.lat === undefined || sample.lon === undefined) continue;
+                const p = projectPoint(sample);
+                const tangent = (i < pathPoints.length - 1 && pathPoints[i + 1])
+                    ? projectPoint(pathPoints[i + 1]).clone().sub(p).normalize()
+                    : new THREE.Vector3(1, 0, 0);
+                const normal = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), tangent).normalize();
+
+                const sides = [1, -1];
+                for (const side of sides) {
+                    const offset = normal.clone().multiplyScalar(side * (3 + Math.random() * 4));
+                    const pos = p.clone().add(offset).add(new THREE.Vector3(0, 0.3, 0));
+                    const roll = Math.random();
+                    if (roll < 0.65) {
+                        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+                        trunk.position.copy(pos).add(new THREE.Vector3(0, 0.4, 0));
+                        const top = new THREE.Mesh(treeGeometry, treeMaterial);
+                        top.position.copy(trunk.position).add(new THREE.Vector3(0, 1.5, 0));
+                        const scale = 0.8 + Math.random() * 0.6;
+                        trunk.scale.set(scale, scale, scale);
+                        top.scale.set(scale, scale, scale);
+                        state.scene.add(trunk);
+                        state.scene.add(top);
+                        state.roadsideObjects.push(trunk, top);
+                    } else {
+                        const rock = new THREE.Mesh(rockGeo, rockMat);
+                        rock.position.copy(pos);
+                        rock.scale.setScalar(0.4 + Math.random() * 1.0);
+                        state.scene.add(rock);
+                        state.roadsideObjects.push(rock);
+                    }
+                }
+
+                // Additional fill for crowding
+                if (Math.random() < 0.7) {
+                    const extraPos = p.clone().add(normal.clone().multiplyScalar(-4 + Math.random() * 8)).add(new THREE.Vector3(0, 0.1, 0));
+                    const rock2 = new THREE.Mesh(rockGeo, rockMat);
+                    rock2.position.copy(extraPos);
+                    rock2.scale.setScalar(0.25 + Math.random() * 0.5);
+                    state.scene.add(rock2);
+                    state.roadsideObjects.push(rock2);
+                }
+
+                // clusters on every 5th segment for heavy foliage
+                if (i % 15 === 0) {
+                    const clusterCount = 3 + Math.floor(Math.random() * 6);
+                    for (let c = 0; c < clusterCount; c++) {
+                        const sideShift = (Math.random() > 0.5 ? 1 : -1);
+                        const clusterOffset = normal.clone().multiplyScalar(sideShift * (2 + Math.random() * 3));
+                        const clusterPos = p.clone().add(clusterOffset).add(new THREE.Vector3(0, 0.3, 0));
+                        const trunkC = new THREE.Mesh(trunkGeo, trunkMat);
+                        const topC = new THREE.Mesh(treeGeometry, treeMaterial);
+                        const sscale = 0.5 + Math.random() * 0.8;
+                        trunkC.scale.set(sscale, sscale, sscale);
+                        topC.scale.set(sscale, sscale, sscale);
+                        trunkC.position.copy(clusterPos).add(new THREE.Vector3(0, 0.4, 0));
+                        topC.position.copy(trunkC.position).add(new THREE.Vector3(0, 1.5, 0));
+                        state.scene.add(trunkC);
+                        state.scene.add(topC);
+                        state.roadsideObjects.push(trunkC, topC);
+                    }
+                }
+            }
         }
 
         function updateRider(positionM) {
@@ -415,10 +580,14 @@
             updateStats();
             // Update progress slider in real-time
             document.getElementById('progressSlider').value = state.distanceM ? (state.positionM / state.distanceM * 100).toFixed(1) : 0;
-            // Update road segment to show only ahead
-            const segmentStart = Math.max(0, state.positionM - 20);
-            const segmentEnd = Math.min(state.distanceM, state.positionM + 1000);
-            createPath(segmentStart, segmentEnd);
+            // Rebuild path/props only when moved far enough to require new segment
+            const rebuildThreshold = 100; // meters
+            if (Math.abs(state.positionM - state.lastPathRebuildM) > rebuildThreshold || state.lastPathRebuildM === 0) {
+                const segmentStart = Math.max(0, state.positionM - 20);
+                const segmentEnd = Math.min(state.distanceM, state.positionM + 1000);
+                createPath(segmentStart, segmentEnd);
+                state.lastPathRebuildM = state.positionM;
+            }
             state.animationId = requestAnimationFrame(animate3D);
         }
 
@@ -453,7 +622,10 @@
             state.positionM = Math.min(state.distanceM, Math.max(0, percent / 100 * state.distanceM));
             updateRider(state.positionM);
             updateStats();
-            createPath(Math.max(0, state.positionM - 20), Math.min(state.distanceM, state.positionM + 1000));
+            const segmentStart = Math.max(0, state.positionM - 20);
+            const segmentEnd = Math.min(state.distanceM, state.positionM + 1000);
+            createPath(segmentStart, segmentEnd);
+            state.lastPathRebuildM = state.positionM;
         }
 
         function calculateSpeed(power, gradePercent, weightKg) {
