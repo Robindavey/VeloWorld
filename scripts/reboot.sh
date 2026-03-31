@@ -5,12 +5,24 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 INFRA_DIR="$ROOT_DIR/infra"
 FRONTEND_DIR="$ROOT_DIR/frontend"
 PID_FILE="/tmp/veloworld_frontend_https.pid"
+KEEP_DB=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --keep-db) KEEP_DB=true; shift ;; 
+    *) echo "Unknown option: $1"; exit 1 ;;
+  esac
+done
 
 echo "Killing all components and rebooting..."
 
 # Stop and clean Docker stack
 echo "Stopping Docker Compose stack..."
-docker-compose -f "$INFRA_DIR/docker-compose.yml" down -v --remove-orphans || true
+if [[ "$KEEP_DB" == true ]]; then
+  docker-compose -f "$INFRA_DIR/docker-compose.yml" down --remove-orphans || true
+else
+  docker-compose -f "$INFRA_DIR/docker-compose.yml" down -v --remove-orphans || true
+fi
 
 # Kill frontend server
 echo "Stopping frontend server..."
@@ -47,5 +59,4 @@ else
     echo "Warning: Certs not found in $FRONTEND_DIR. Skipping frontend start."
 fi
 
-echo "Reboot complete. Check status with: ./scripts/manage.sh status"</content>
-<parameter name="filePath">/home/robin/Desktop/Programs/VeloWorld/scripts/reboot.sh
+echo "Reboot complete. Check status with: ./scripts/manage.sh status"

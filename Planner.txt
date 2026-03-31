@@ -1,37 +1,4 @@
-VeloWorld
-
--   an improved indoor trianing platform. we upload a planned or recorded route and the platform builds it.
-    (private or public). we use LiDar for improved gradient detection based on gps co-ordinates
--   use LandMarks built with AI and possibly incorporate street view
--   build in real world physics 
--   many modes 
-    . solo-trianing
-    . expirnece the real thing
-        we see the real thing nice photos from the locations. and possibly AI gen. we cna have audio description for visually impared people too.
-        responsive trianiner feeling
-        possibly enforced breaking as well
-
-    . team recon
-        using the real world physics of the world we can imcluide things for race teams
-        wind conditions
-        rain
-        road surface changes
-        we can also have a built in tool like erg mode that will keep the rider in the draft in TTT and teach them this.
-        we cna also have a more punishing way using the real physics engine we can buzz and cnacel a session or effort because of bad positioning. this way we can push limits ofd team trainign without endangering riders
-    . holdiay prep
-        see the real deal before u go
-        try out different combination of gear see what is most comfortable
-
-VR extension for Oakley Glass mabye using heads up display
-
-teach better road hnadling by rewading breaking on corners.
-use of differnet tyre combinations will feed into physics engine and we cna slip out.
-we learn the limits in a safe envirment like sim racing
-
-
-chat features for group riders
- forced turns in group ride and even use a perseption of the riders FTP or their current feeling, without their input. thus takign same out of hiding at the back of the bunch
-
-
-route sharing
-or market place
+Next Thing. 
+1. Improve Styling of page. we now call the Dedicated Demo Page the Map Tracer. And we cna remove the Demo Ride Simulator.
+2. We also need another Dedicated page for the route. here where should have a page that shows a 3d annimation of our dot moving along using the gps data and we see the turns and gradient similar to the Zwift Climb Portal. we need also a slide bar to jump along the route as well. 
+3. the rider profile data on the demo page should be its own page as well. where we cna see out chnage password method and chnage rider weight nad ftp. there persiset for that user.

@@ -133,6 +133,7 @@ func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/auth/login", a.AuthHandler.Login).Methods("POST")
 	a.Router.Handle("/auth/me", middleware.AuthMiddleware(http.HandlerFunc(a.AuthHandler.GetCurrentUser))).Methods("GET")
 	a.Router.Handle("/auth/profile", middleware.AuthMiddleware(http.HandlerFunc(a.AuthHandler.UpdateProfile))).Methods("PUT")
+	a.Router.Handle("/auth/password", middleware.AuthMiddleware(http.HandlerFunc(a.AuthHandler.ChangePassword))).Methods("PUT")
 
 	// Route routes (protected)
 	protected := a.Router.PathPrefix("/").Subrouter()

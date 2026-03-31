@@ -63,7 +63,11 @@
     <div class="container">
         <h1>🚴 VeloWorld</h1>
         <p>Cycling Simulator - Upload routes and start riding!</p>
-        <p><a href="/demo.html" style="color:#007bff;">Open Dedicated Demo Page</a></p>
+        <p>
+            <a href="/map-tracer.html" style="color:#007bff;">Open Map Tracer</a> |
+            <a href="/route-3d.html" style="color:#007bff;">Open Route 3D</a> |
+            <a href="/profile.html" style="color:#007bff;">Open Rider Profile</a>
+        </p>
 
         <!-- Authentication Section -->
         <div id="auth-section" class="auth-section">
@@ -110,7 +114,7 @@
 
         <!-- Demo Section -->
         <div id="demo-section" class="routes-section hidden">
-            <h2>🚴 Demo Ride Simulator</h2>
+            <h2>🚴 Map Tracer</h2>
             <div class="form-group">
                 <label for="demo-toggle">Enable Demo Mode:</label>
                 <input type="checkbox" id="demo-toggle" onchange="toggleDemo()">
@@ -174,10 +178,10 @@
                     document.getElementById('auth-message').textContent = 'Login successful!';
                 } else {
                     const errorText = await response.text();
-                    document.getElementById('auth-message').textContent = errorText || 'Login failed';
+                    document.getElementById('auth-message').textContent = errorText || `Login failed (${response.status})`;
                 }
             } catch (error) {
-                document.getElementById('auth-message').textContent = 'Network error';
+                document.getElementById('auth-message').textContent = `Network error: ${error?.message || error}`;
             }
         }
 
@@ -215,7 +219,7 @@
                 }
             } catch (error) {
                 console.error('Network error:', error);
-                document.getElementById('auth-message').textContent = 'Network error';
+                document.getElementById('auth-message').textContent = `Network error: ${error?.message || error}`;
             }
         }
 
@@ -262,7 +266,7 @@
                     document.getElementById('upload-message').textContent = data.error || 'Upload failed';
                 }
             } catch (error) {
-                document.getElementById('upload-message').textContent = 'Network error';
+                document.getElementById('upload-message').textContent = `Network error: ${error?.message || error}`;
             }
         }
 
@@ -280,7 +284,7 @@
                     document.getElementById('routes-list').innerHTML = '<p>Failed to load routes</p>';
                 }
             } catch (error) {
-                document.getElementById('routes-list').innerHTML = '<p>Network error</p>';
+                document.getElementById('routes-list').innerHTML = `<p>Network error: ${error?.message || error}</p>`;
             }
         }
 

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VeloWorld Route 3D</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <style>
+        body { margin: 0; font-family: Arial, sans-serif; background: #0d1117; color: #f0f6fc; }
+        .topbar { background:#161b22; border-bottom:1px solid #30363d; padding:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+        .topbar a, .topbar select, .topbar button { color:#f0f6fc; background:#0d1117; border:1px solid #30363d; border-radius:5px; padding:6px 10px; text-decoration:none; }
+        .main { display:grid; grid-template-columns: 2fr 1fr; gap: 10px; padding:10px; height: calc(100vh - 56px); }
+        #map, #trackCanvas { width: 100%; height: 100%; border: 1px solid #30363d; border-radius: 8px; background:#0d1117; }
+        .panel { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:10px; overflow:auto; }
+        .label { font-size:11px; color:#8b949e; }
+        .status { margin-top: 6px; color:#58a6ff; }
+        .slider { width: 100%; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <a href="/index.html">↩ Home</a>
+        <span>Route 3D Portal</span>
+        <select id="routeSelect" onchange="loadRoute3D()"></select>
+        <button onclick="start3D()" id="startBtn">Start</button>
+        <button onclick="pause3D()" id="pauseBtn" disabled>Pause</button>
+        <button onclick="reset3D()">Reset</button>
+        <span class="status" id="runState">Stopped</span>
+    </div>
+    <div class="main">
+        <div class="panel">
+            <h3>3D Route Viewer</h3>
+            <div id="map"></div>
+            <p class="label">Use the slider to jump along the route.</p>
+            <input id="progressSlider" class="slider" type="range" min="0" max="100" value="0" onchange="seekRoute(this.value)" />
+            <p id="gradientLabel">Gradient: -</p>
+            <p id="distanceLabel">Distance: 0.0 km</p>
+            <p id="speedLabel">Speed: 0.0 km/h</p>
+        </div>
+        <div class="panel">
+            <h3>Visualization</h3>
+            <canvas id="trackCanvas" width="400" height="360"></canvas>
+            <p class="label">Gradient profile (hill: red, flat: green, descent: blue).</p>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script>
+        const API_BASE = 'http://localhost:8080';
+        const token = localStorage.getItem('veloworld_token');
+        if (!token) window.location.href = '/index.html';
+
+        const state = {
+            route: null,
+            profile: [],
+            positionM: 0,
+            distanceM: 0,
+            running: false,
+            animationId: null,
+            map: null,
+            routeLine: null,
+            marker: null,
+            lastFrame: 0,
+            speedKmh: 0
+        };
+
+        function init() {
+            state.map = L.map('map').setView([51.5, -0.1], 12);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '' }).addTo(state.map);
+            loadRoutes3D();
+        }
+
+        async function loadRoutes3D() {
+            try {
+                const resp = await fetch(`${API_BASE}/routes`, { headers: { Authorization: `Bearer ${token}` } });
+                const data = await resp.json();
+                if (!resp.ok) { throw new Error(data.error || 'Failed to fetch routes'); }
+                const options = data.filter(r => r.processing_status === 'ready').map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+                document.getElementById('routeSelect').innerHTML = options || '<option value="">No ready routes</option>';
+                if (data.length > 0) loadRoute3D();
+            } catch (err) {
+                alert('Route list error: ' + err.message);
+            }
+        }
+
+        async function loadRoute3D() {
+            const routeId = document.getElementById('routeSelect').value;
+            if (!routeId) return;
+            try {
+                const resp = await fetch(`${API_BASE}/routes/${routeId}/render-data`, { headers: { Authorization: `Bearer ${token}` } });
+                const data = await resp.json();
+                if (!resp.ok) { throw new Error(data.error || 'Failed to fetch route render data'); }
+
+                state.profile = data.profile_points || [];
+                state.distanceM = data.distance_m || 0;
+                state.positionM = 0;
+                state.route = data;
+                drawMapRoute();
+                drawTrackCanvas();
+                updateStats();
+                document.getElementById('progressSlider').value = '0';
+                document.getElementById('runState').textContent = 'Loaded';
+            } catch (err) {
+                alert('Load route error: ' + err.message);
+            }
+        }
+
+        function drawMapRoute() {
+            const latlngs = state.profile.filter(p=>p.lat&&p.lon).map(p=>[p.lat,p.lon]);
+            if (state.routeLine) { state.routeLine.remove(); }
+            if (state.marker) { state.marker.remove(); }
+            if (latlngs.length < 2) return;
+            state.routeLine = L.polyline(latlngs, { color: '#58a6ff', weight: 4 }).addTo(state.map);
+            state.marker = L.circleMarker(latlngs[0], { radius:8, color:'#ff3b30'}).addTo(state.map);
+            state.map.fitBounds(state.routeLine.getBounds(), { padding:[20,20] });
+        }
+
+        function updateMarker(positionM) {
+            const point = getPointAtDistance(positionM);
+            if (!point) return;
+            const latlng = [point.lat, point.lon];
+            state.marker.setLatLng(latlng);
+        }
+
+        function getPointAtDistance(posM) {
+            const pts = state.profile;
+            if (pts.length===0) return null;
+            if (posM <= 0) return pts[0];
+            for (let i=1;i<pts.length;i++) {
+                if (pts[i].distance_m >= posM) {
+                    const a=pts[i-1], b=pts[i];
+                    const t=(posM-a.distance_m)/(b.distance_m-a.distance_m);
+                    return {
+                        distance_m:posM,
+                        elevation_m:a.elevation_m + (b.elevation_m-a.elevation_m)*t,
+                        lat:a.lat + (b.lat-a.lat)*t,
+                        lon:a.lon + (b.lon-a.lon)*t,
+                        grade:(b.elevation_m-a.elevation_m)/(b.distance_m-a.distance_m)*100
+                    };
+                }
+            }
+            return pts[pts.length-1];
+        }
+
+        function drawTrackCanvas() {
+            const canvas = document.getElementById('trackCanvas');
+            const ctx = canvas.getContext('2d');
+            const W=canvas.width, H=canvas.height;
+            ctx.clearRect(0,0,W,H);
+            if (!state.profile.length) return;
+            const points=state.profile;
+            const minElev=Math.min(...points.map(p=>p.elevation_m || 0));
+            const maxElev=Math.max(...points.map(p=>p.elevation_m || 0));
+            const range= Math.max(1,maxElev-minElev);
+            const baseline = H-30;
+
+            ctx.strokeStyle='#444'; ctx.lineWidth=4; ctx.beginPath();
+            for (let i=0;i<points.length;i++) {
+                const x = (i/(points.length-1))*(W-40)+20;
+                const y = baseline - ((points[i].elevation_m-minElev)/range)*(H-70);
+                if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+            }
+            ctx.stroke();
+
+            for (let i=1;i<points.length;i++) {
+                const a=points[i-1], b=points[i];
+                const grade=(b.elevation_m-a.elevation_m)/(b.distance_m-a.distance_m);
+                const x = (i/(points.length-1))*(W-40)+20;
+                const y = baseline - ((b.elevation_m-minElev)/range)*(H-70);
+                ctx.fillStyle = grade > 0 ? '#ff7f50' : grade < 0 ? '#4dcfef' : '#68d391';
+                ctx.fillRect(x-2, y-1, 4, 2);
+            }
+            const currX = (Math.min(1, state.positionM/state.distanceM)*(W-40))+20;
+            const currPt = getPointAtDistance(state.positionM);
+            const currY = baseline - ((currPt.elevation_m-minElev)/range)*(H-70);
+            ctx.fillStyle='#ff3b30'; ctx.beginPath(); ctx.arc(currX,currY,6,0,2*Math.PI); ctx.fill();
+        }
+
+        function updateStats() {
+            const p = getPointAtDistance(state.positionM);
+            const grade = p?.grade?.toFixed(2) ?? 0;
+            document.getElementById('gradientLabel').textContent = `Gradient: ${grade}%`;
+            document.getElementById('distanceLabel').textContent = `Distance: ${(state.positionM/1000).toFixed(2)} km`;
+            document.getElementById('speedLabel').textContent = `Speed: ${state.speedKmh.toFixed(1)} km/h`;
+            document.getElementById('progressSlider').value = state.distanceM ? (state.positionM/state.distanceM*100).toFixed(1) : 0;
+            drawTrackCanvas();
+        }
+
+        function animate() {
+            if (!state.running) return;
+            const now = performance.now();
+            const dt = (now-state.lastFrame)/1000;
+            state.lastFrame = now;
+            const point = getPointAtDistance(state.positionM);
+            const grade = point?.grade || 0;
+            const target = Math.max(5, Math.min(55, 5 + (1.8*state.route ? 0.0 : 0.0))); // placeholder, or constant speed 18
+            state.speedKmh = 12 + grade*2;
+            state.positionM += state.speedKmh/3.6 * dt;
+            if (state.positionM > state.distanceM) { state.positionM = state.distanceM; pause3D(); }
+            updateMarker(state.positionM);
+            updateStats();
+            state.animationId = requestAnimationFrame(animate);
+        }
+
+        function start3D() {
+            if (!state.profile.length) return;
+            state.running = true;
+            state.lastFrame = performance.now();
+            document.getElementById('runState').textContent = 'Running';
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('pauseBtn').disabled = false;
+            state.animationId = requestAnimationFrame(animate);
+        }
+
+        function pause3D() {
+            state.running = false;
+            document.getElementById('runState').textContent = 'Paused';
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = true;
+            if (state.animationId) cancelAnimationFrame(state.animationId);
+        }
+
+        function reset3D() {
+            pause3D();
+            state.positionM = 0; state.speedKmh = 0;
+            updateMarker(0); updateStats();
+            document.getElementById('runState').textContent = 'Stopped';
+        }
+
+        function seekRoute(percent) {
+            state.positionM = Math.min(state.distanceM, Math.max(0, percent/100*state.distanceM));
+            updateMarker(state.positionM); updateStats();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
