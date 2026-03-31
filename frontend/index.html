@@ -5,58 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VeloWorld - Cycling Simulator</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .auth-section, .upload-section, .routes-section {
-            margin-bottom: 30px;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        input, textarea {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        button {
-            background: #007bff;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        button:hover {
-            background: #0056b3;
-        }
-        .route-item {
-            border: 1px solid #ddd;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-        }
-        .status-queued { color: orange; }
-        .status-processing { color: blue; }
-        .status-ready { color: green; }
-        .status-failed { color: red; }
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); color: #f0f6fc; min-height: 100vh; }
+        .container { max-width: 900px; margin: 40px auto; padding: 30px; background: rgba(22, 27, 34, 0.95); border-radius: 15px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); border: 1px solid #30363d; }
+        h1 { text-align: center; background: linear-gradient(45deg, #58a6ff, #f78166); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 20px; }
+        p { text-align: center; color: #8b949e; margin-bottom: 30px; }
+        .links { text-align: center; margin-bottom: 30px; }
+        .links a { display: inline-block; margin: 0 15px; padding: 12px 24px; background: #238636; color: #fff; text-decoration: none; border-radius: 8px; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(35, 134, 54, 0.3); }
+        .links a:hover { background: #2ea043; transform: translateY(-2px); box-shadow: 0 6px 16px rgba(35, 134, 54, 0.4); }
+        .auth-section, .upload-section, .routes-section, .demo-section { margin-bottom: 30px; padding: 20px; background: rgba(13, 17, 23, 0.8); border-radius: 10px; border: 1px solid #30363d; }
+        h2 { color: #58a6ff; margin-bottom: 15px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: #c9d1d9; }
+        input, textarea, select { width: 100%; padding: 10px; border: 1px solid #30363d; border-radius: 6px; background: #0d1117; color: #f0f6fc; box-sizing: border-box; }
+        button { padding: 12px 20px; background: #238636; color: #fff; border: none; border-radius: 6px; cursor: pointer; transition: all 0.3s ease; }
+        button:hover { background: #2ea043; transform: translateY(-1px); }
         .hidden { display: none; }
+        .route-item { padding: 15px; margin-bottom: 10px; background: rgba(48, 54, 61, 0.5); border-radius: 8px; border: 1px solid #30363d; }
+        .route-item h3 { margin: 0 0 10px 0; color: #58a6ff; }
+        .route-item p { margin: 5px 0; color: #8b949e; }
+        .status-ready { color: #56d364; }
+        .status-processing { color: #d29922; }
+        .status-failed { color: #f85149; }
+        .status-queued { color: #d29922; }
     </style>
 </head>
 <body>
@@ -64,9 +34,9 @@
         <h1>🚴 VeloWorld</h1>
         <p>Cycling Simulator - Upload routes and start riding!</p>
         <p>
-            <a href="/map-tracer.html" style="color:#007bff;">Open Map Tracer</a> |
-            <a href="/route-3d.html" style="color:#007bff;">Open Route 3D</a> |
-            <a href="/profile.html" style="color:#007bff;">Open Rider Profile</a>
+            <button onclick="window.location.href='/map-tracer.html'">Map Tracer</button>
+            <button onclick="window.location.href='/route-3d.html'">Route 3D</button>
+            <button onclick="window.location.href='/profile.html'">Rider Profile</button>
         </p>
 
         <!-- Authentication Section -->

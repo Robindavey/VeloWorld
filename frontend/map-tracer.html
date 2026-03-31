@@ -79,11 +79,10 @@
             <div class="panel-body">
                 <canvas id="elevationCanvas" width="340" height="220"></canvas>
                 <div class="settings-grid">
-                    <label>Weight (kg)</label><input id="weightInput" type="number" min="35" max="250" step="0.1" value="75" />
-                    <label>FTP (W)</label><input id="ftpInput" type="number" min="80" max="600" step="1" value="210" />
+                    <label>Route Progress</label>
+                    <input id="progressSlider" type="range" min="0" max="100" value="0" oninput="seekRoute(this.value)" />
                 </div>
-                <button style="margin-top:10px" onclick="saveProfile()">Save Profile</button>
-                <p class="muted">Power zone colors use rider FTP from profile.</p>
+                <p class="muted">Use the slider to jump along the route.</p>
             </div>
         </div>
     </div>
@@ -126,22 +125,9 @@
                 state.rider.weightKg = me.rider_weight_kg || 75;
                 state.rider.ftpW = me.ftp_w || 210;
             } catch (_) {}
-            document.getElementById('weightInput').value = state.rider.weightKg;
-            document.getElementById('ftpInput').value = state.rider.ftpW;
         }
 
-        async function saveProfile() {
-            const weight = parseFloat(document.getElementById('weightInput').value || '75');
-            const ftp = parseFloat(document.getElementById('ftpInput').value || '210');
-            state.rider.weightKg = weight;
-            state.rider.ftpW = ftp;
-            await fetch(`${API_BASE}/auth/profile`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ rider_weight_kg: weight, ftp_w: ftp })
-            });
-            alert('Profile saved');
-        }
+
 
         async function fetchRoutes() {
             const res = await fetch(`${API_BASE}/routes`, { headers: { Authorization: `Bearer ${token}` } });
@@ -199,8 +185,15 @@
             updateMarker(state.positionM);
             updateHud(state.positionM, speedKmh, grade, power);
             drawElevation();
+            document.getElementById('progressSlider').value = state.distanceM ? (state.positionM / state.distanceM * 100).toFixed(1) : 0;
             if (state.positionM >= state.distanceM) state.running = false;
             if (state.running) requestAnimationFrame(loop);
+        }
+
+        function seekRoute(percent) {
+            state.positionM = Math.min(state.distanceM, Math.max(0, percent / 100 * state.distanceM));
+            updateMarker(state.positionM);
+            refreshHudPreview();
         }
 
         function calculateSpeed(power, gradePercent, weightKg) {

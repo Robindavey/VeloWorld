@@ -5,15 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VeloWorld Rider Profile</title>
     <style>
-        body { margin:0; font-family:Arial, sans-serif; background:#0d1117; color:#f0f6fc; }
-        .container { max-width:750px; margin:24px auto; padding:16px; background:#161b22; border:1px solid #30363d; border-radius:10px; }
-        h1, h2 { margin:10px 0; }
-        .field { margin: 10px 0; }
-        label { display:block; margin-bottom:4px; color:#8b949e; }
-        input, textarea { width:100%; padding:8px 10px; border:1px solid #30363d; border-radius:6px; background:#0d1117; color:#f0f6fc; }
-        button { margin:6px 4px 0 0; padding:8px 12px; border:1px solid #30363d; border-radius:6px; background:#238636; color:#fff; cursor:pointer; }
+        body { margin:0; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); color:#f0f6fc; min-height:100vh; }
+        .container { max-width:750px; margin:40px auto; padding:30px; background: rgba(22, 27, 34, 0.95); border-radius:15px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); border:1px solid #30363d; }
+        h1, h2 { margin:10px 0; color:#58a6ff; }
+        .field { margin: 15px 0; }
+        label { display:block; margin-bottom:5px; color:#c9d1d9; }
+        input, textarea { width:100%; padding:10px 12px; border:1px solid #30363d; border-radius:6px; background:#0d1117; color:#f0f6fc; box-sizing:border-box; }
+        button { margin:8px 6px 0 0; padding:12px 20px; background:#238636; color:#fff; border:none; border-radius:6px; cursor:pointer; transition: all 0.3s ease; }
+        button:hover { background:#2ea043; transform:translateY(-1px); }
         .secondary { background:#0f6cbd; }
-        .status { padding:8px; margin-top:12px; border-radius:6px; }
+        .secondary:hover { background:#1f77d0; }
+        .status { padding:10px; margin-top:15px; border-radius:6px; }
         .status.error { background:#67000d; color:#ffe3e6; }
         .status.ok { background:#0f6; color:#002900; }
         a { color:#58a6ff; text-decoration:none; }

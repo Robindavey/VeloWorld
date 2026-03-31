@@ -4,13 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VeloWorld Route 3D</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
     <style>
-        body { margin: 0; font-family: Arial, sans-serif; background: #0d1117; color: #f0f6fc; }
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); color: #f0f6fc; }
         .topbar { background:#161b22; border-bottom:1px solid #30363d; padding:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
         .topbar a, .topbar select, .topbar button { color:#f0f6fc; background:#0d1117; border:1px solid #30363d; border-radius:5px; padding:6px 10px; text-decoration:none; }
         .main { display:grid; grid-template-columns: 2fr 1fr; gap: 10px; padding:10px; height: calc(100vh - 56px); }
-        #map, #trackCanvas { width: 100%; height: 100%; border: 1px solid #30363d; border-radius: 8px; background:#0d1117; }
+        #scene, #trackCanvas { width: 100%; height: 100%; border: 1px solid #30363d; border-radius: 8px; background:#0d1117; }
         .panel { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:10px; overflow:auto; }
         .label { font-size:11px; color:#8b949e; }
         .status { margin-top: 6px; color:#58a6ff; }
@@ -22,29 +21,45 @@
         <a href="/index.html">↩ Home</a>
         <span>Route 3D Portal</span>
         <select id="routeSelect" onchange="loadRoute3D()"></select>
+        <label>Power (W)</label>
+        <input id="powerInput" type="range" min="0" max="500" value="160" oninput="onPowerInput(this.value)" />
+        <span id="powerValue">160</span>
+        <label>Power Source</label>
+        <select id="powerSource" onchange="onPowerSourceChange()">
+            <option value="manual">Manual Slider</option>
+            <option value="device">Power Meter / Trainer</option>
+        </select>
+        <button id="connectDeviceBtn" onclick="connectPowerDevice()" disabled>Connect Device</button>
+        <span id="deviceStatus" class="muted">Manual</span>
         <button onclick="start3D()" id="startBtn">Start</button>
         <button onclick="pause3D()" id="pauseBtn" disabled>Pause</button>
         <button onclick="reset3D()">Reset</button>
         <span class="status" id="runState">Stopped</span>
     </div>
+    <div id="bt-warning" style="display:none; background:#ffebe6; color:#611a15; padding:10px; border:1px solid #f5c6cb; margin:8px; border-radius:6px; max-width:1100px; margin-left:auto; margin-right:auto;">
+        <strong>Web Bluetooth requires a secure context (HTTPS).</strong>
+        If you see a "use https" message, serve the demo from <code>localhost</code> or use HTTPS (mkcert/ngrok), or launch Chrome with the insecure-origin flag for testing. See the console for quick commands.
+    </div>
     <div class="main">
         <div class="panel">
-            <h3>3D Route Viewer</h3>
-            <div id="map"></div>
+            <h3>3D Route Animation</h3>
+            <div id="scene"></div>
             <p class="label">Use the slider to jump along the route.</p>
             <input id="progressSlider" class="slider" type="range" min="0" max="100" value="0" onchange="seekRoute(this.value)" />
             <p id="gradientLabel">Gradient: -</p>
             <p id="distanceLabel">Distance: 0.0 km</p>
             <p id="speedLabel">Speed: 0.0 km/h</p>
+            <p id="powerLabel">Power: 160 W</p>
         </div>
         <div class="panel">
-            <h3>Visualization</h3>
+            <h3>Elevation Profile</h3>
             <canvas id="trackCanvas" width="400" height="360"></canvas>
             <p class="label">Gradient profile (hill: red, flat: green, descent: blue).</p>
         </div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
         const API_BASE = 'http://localhost:8080';
         const token = localStorage.getItem('veloworld_token');
@@ -57,17 +72,73 @@
             distanceM: 0,
             running: false,
             animationId: null,
-            map: null,
-            routeLine: null,
-            marker: null,
+            scene: null,
+            camera: null,
+            renderer: null,
+            rider: null,
+            path: null,
+            controls: null,
             lastFrame: 0,
-            speedKmh: 0
+            speedKmh: 0,
+            rider: { weightKg: 75, ftpW: 210 },
+            powerSource: "manual",
+            livePowerW: 160,
+            powerDevice: null,
+            powerCharacteristic: null
         };
 
         function init() {
-            state.map = L.map('map').setView([51.5, -0.1], 12);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '' }).addTo(state.map);
+            const container = document.getElementById('scene');
+            state.scene = new THREE.Scene();
+            state.scene.background = new THREE.Color(0x87CEEB); // Sky blue
+            state.camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            state.renderer = new THREE.WebGLRenderer();
+            state.renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(state.renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            state.scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(1, 1, 1);
+            state.scene.add(directionalLight);
+
+            // Rider (simple cube)
+            const geometry = new THREE.BoxGeometry(0.5, 1.8, 0.5);
+            const material = new THREE.MeshLambertMaterial({ color: 0xff0000 });
+            state.rider = new THREE.Mesh(geometry, material);
+            state.scene.add(state.rider);
+
+            // Ground
+            const groundGeometry = new THREE.PlaneGeometry(1000, 1000);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -1;
+            state.scene.add(ground);
+
+            // Controls
+            state.controls = new THREE.OrbitControls(state.camera, state.renderer.domElement);
+            state.controls.enableDamping = true;
+            state.controls.dampingFactor = 0.05;
+
             loadRoutes3D();
+            animate();
+        }
+
+        async function fetchProfile() {
+            try {
+                const res = await fetch(`${API_BASE}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+                const me = await res.json();
+                state.rider.weightKg = me.rider_weight_kg || 75;
+                state.rider.ftpW = me.ftp_w || 210;
+            } catch (_) {}
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            state.controls.update();
+            state.renderer.render(state.scene, state.camera);
         }
 
         async function loadRoutes3D() {
@@ -95,7 +166,7 @@
                 state.distanceM = data.distance_m || 0;
                 state.positionM = 0;
                 state.route = data;
-                drawMapRoute();
+                createPath();
                 drawTrackCanvas();
                 updateStats();
                 document.getElementById('progressSlider').value = '0';
@@ -105,101 +176,113 @@
             }
         }
 
-        function drawMapRoute() {
-            const latlngs = state.profile.filter(p=>p.lat&&p.lon).map(p=>[p.lat,p.lon]);
-            if (state.routeLine) { state.routeLine.remove(); }
-            if (state.marker) { state.marker.remove(); }
-            if (latlngs.length < 2) return;
-            state.routeLine = L.polyline(latlngs, { color: '#58a6ff', weight: 4 }).addTo(state.map);
-            state.marker = L.circleMarker(latlngs[0], { radius:8, color:'#ff3b30'}).addTo(state.map);
-            state.map.fitBounds(state.routeLine.getBounds(), { padding:[20,20] });
+        function createPath() {
+            if (state.path) state.scene.remove(state.path);
+            const points = state.profile.map(p => new THREE.Vector3(p.lon * 10, p.elevation_m / 10, p.lat * 10)); // Scale for visibility
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const material = new THREE.LineBasicMaterial({ color: 0x0000ff });
+            state.path = new THREE.Line(geometry, material);
+            state.scene.add(state.path);
         }
 
-        function updateMarker(positionM) {
+        function updateRider(positionM) {
             const point = getPointAtDistance(positionM);
             if (!point) return;
-            const latlng = [point.lat, point.lon];
-            state.marker.setLatLng(latlng);
+            state.rider.position.set(point.lon * 10, point.elevation_m / 10 + 1, point.lat * 10);
+            // Camera follows rider
+            state.camera.position.set(state.rider.position.x + 5, state.rider.position.y + 5, state.rider.position.z + 5);
+            state.camera.lookAt(state.rider.position);
         }
 
         function getPointAtDistance(posM) {
             const pts = state.profile;
-            if (pts.length===0) return null;
+            if (pts.length === 0) return null;
             if (posM <= 0) return pts[0];
-            for (let i=1;i<pts.length;i++) {
+            for (let i = 1; i < pts.length; i++) {
                 if (pts[i].distance_m >= posM) {
-                    const a=pts[i-1], b=pts[i];
-                    const t=(posM-a.distance_m)/(b.distance_m-a.distance_m);
+                    const a = pts[i - 1], b = pts[i];
+                    const t = (posM - a.distance_m) / (b.distance_m - a.distance_m);
                     return {
-                        distance_m:posM,
-                        elevation_m:a.elevation_m + (b.elevation_m-a.elevation_m)*t,
-                        lat:a.lat + (b.lat-a.lat)*t,
-                        lon:a.lon + (b.lon-a.lon)*t,
-                        grade:(b.elevation_m-a.elevation_m)/(b.distance_m-a.distance_m)*100
+                        distance_m: posM,
+                        elevation_m: a.elevation_m + (b.elevation_m - a.elevation_m) * t,
+                        lat: a.lat + (b.lat - a.lat) * t,
+                        lon: a.lon + (b.lon - a.lon) * t,
+                        grade: (b.elevation_m - a.elevation_m) / (b.distance_m - a.distance_m) * 100
                     };
                 }
             }
-            return pts[pts.length-1];
+            return pts[pts.length - 1];
         }
 
         function drawTrackCanvas() {
             const canvas = document.getElementById('trackCanvas');
             const ctx = canvas.getContext('2d');
-            const W=canvas.width, H=canvas.height;
-            ctx.clearRect(0,0,W,H);
+            const W = canvas.width, H = canvas.height;
+            ctx.clearRect(0, 0, W, H);
             if (!state.profile.length) return;
-            const points=state.profile;
-            const minElev=Math.min(...points.map(p=>p.elevation_m || 0));
-            const maxElev=Math.max(...points.map(p=>p.elevation_m || 0));
-            const range= Math.max(1,maxElev-minElev);
-            const baseline = H-30;
+            const points = state.profile;
+            const minElev = Math.min(...points.map(p => p.elevation_m || 0));
+            const maxElev = Math.max(...points.map(p => p.elevation_m || 0));
+            const range = Math.max(1, maxElev - minElev);
+            const baseline = H - 30;
 
-            ctx.strokeStyle='#444'; ctx.lineWidth=4; ctx.beginPath();
-            for (let i=0;i<points.length;i++) {
-                const x = (i/(points.length-1))*(W-40)+20;
-                const y = baseline - ((points[i].elevation_m-minElev)/range)*(H-70);
-                if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            for (let i = 0; i < points.length; i++) {
+                const x = (i / (points.length - 1)) * (W - 40) + 20;
+                const y = baseline - ((points[i].elevation_m - minElev) / range) * (H - 70);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
             }
             ctx.stroke();
 
-            for (let i=1;i<points.length;i++) {
-                const a=points[i-1], b=points[i];
-                const grade=(b.elevation_m-a.elevation_m)/(b.distance_m-a.distance_m);
-                const x = (i/(points.length-1))*(W-40)+20;
-                const y = baseline - ((b.elevation_m-minElev)/range)*(H-70);
+            for (let i = 1; i < points.length; i++) {
+                const a = points[i - 1], b = points[i];
+                const grade = (b.elevation_m - a.elevation_m) / (b.distance_m - a.distance_m);
+                const x = (i / (points.length - 1)) * (W - 40) + 20;
+                const y = baseline - ((b.elevation_m - minElev) / range) * (H - 70);
                 ctx.fillStyle = grade > 0 ? '#ff7f50' : grade < 0 ? '#4dcfef' : '#68d391';
-                ctx.fillRect(x-2, y-1, 4, 2);
+                ctx.fillRect(x - 2, y - 1, 4, 2);
             }
-            const currX = (Math.min(1, state.positionM/state.distanceM)*(W-40))+20;
+            const currX = (Math.min(1, state.positionM / state.distanceM) * (W - 40)) + 20;
             const currPt = getPointAtDistance(state.positionM);
-            const currY = baseline - ((currPt.elevation_m-minElev)/range)*(H-70);
-            ctx.fillStyle='#ff3b30'; ctx.beginPath(); ctx.arc(currX,currY,6,0,2*Math.PI); ctx.fill();
+            const currY = baseline - ((currPt.elevation_m - minElev) / range) * (H - 70);
+            ctx.fillStyle = '#ff3b30';
+            ctx.beginPath();
+            ctx.arc(currX, currY, 6, 0, 2 * Math.PI);
+            ctx.fill();
         }
 
         function updateStats() {
             const p = getPointAtDistance(state.positionM);
             const grade = p?.grade?.toFixed(2) ?? 0;
+            const power = getCurrentPower();
             document.getElementById('gradientLabel').textContent = `Gradient: ${grade}%`;
-            document.getElementById('distanceLabel').textContent = `Distance: ${(state.positionM/1000).toFixed(2)} km`;
+            document.getElementById('distanceLabel').textContent = `Distance: ${(state.positionM / 1000).toFixed(2)} km`;
             document.getElementById('speedLabel').textContent = `Speed: ${state.speedKmh.toFixed(1)} km/h`;
-            document.getElementById('progressSlider').value = state.distanceM ? (state.positionM/state.distanceM*100).toFixed(1) : 0;
+            document.getElementById('powerLabel').textContent = `Power: ${Math.round(power)} W`;
+            document.getElementById('progressSlider').value = state.distanceM ? (state.positionM / state.distanceM * 100).toFixed(1) : 0;
             drawTrackCanvas();
         }
 
-        function animate() {
+        function animate3D() {
             if (!state.running) return;
             const now = performance.now();
-            const dt = (now-state.lastFrame)/1000;
+            const dt = (now - state.lastFrame) / 1000;
             state.lastFrame = now;
             const point = getPointAtDistance(state.positionM);
             const grade = point?.grade || 0;
-            const target = Math.max(5, Math.min(55, 5 + (1.8*state.route ? 0.0 : 0.0))); // placeholder, or constant speed 18
-            state.speedKmh = 12 + grade*2;
-            state.positionM += state.speedKmh/3.6 * dt;
-            if (state.positionM > state.distanceM) { state.positionM = state.distanceM; pause3D(); }
-            updateMarker(state.positionM);
+            const power = getCurrentPower();
+            state.speedKmh = calculateSpeed(power, grade, state.rider.weightKg);
+            state.positionM += state.speedKmh / 3.6 * dt;
+            if (state.positionM > state.distanceM) {
+                state.positionM = state.distanceM;
+                pause3D();
+            }
+            updateRider(state.positionM);
             updateStats();
-            state.animationId = requestAnimationFrame(animate);
+            state.animationId = requestAnimationFrame(animate3D);
         }
 
         function start3D() {
@@ -209,7 +292,7 @@
             document.getElementById('runState').textContent = 'Running';
             document.getElementById('startBtn').disabled = true;
             document.getElementById('pauseBtn').disabled = false;
-            state.animationId = requestAnimationFrame(animate);
+            state.animationId = requestAnimationFrame(animate3D);
         }
 
         function pause3D() {
@@ -222,17 +305,138 @@
 
         function reset3D() {
             pause3D();
-            state.positionM = 0; state.speedKmh = 0;
-            updateMarker(0); updateStats();
+            state.positionM = 0;
+            state.speedKmh = 0;
+            updateRider(0);
+            updateStats();
             document.getElementById('runState').textContent = 'Stopped';
         }
 
         function seekRoute(percent) {
-            state.positionM = Math.min(state.distanceM, Math.max(0, percent/100*state.distanceM));
-            updateMarker(state.positionM); updateStats();
+            state.positionM = Math.min(state.distanceM, Math.max(0, percent / 100 * state.distanceM));
+            updateRider(state.positionM);
+            updateStats();
         }
 
-        window.onload = init;
+        function calculateSpeed(power, gradePercent, weightKg) {
+            const mass = Math.max(35, weightKg) + 8.0;
+            const g = 9.81, crr = 0.005, rhoCdA = 0.32, eff = 0.97, slope = gradePercent / 100;
+            const usablePower = Math.max(0, power) * eff;
+            let lo = 0, hi = 30;
+            for (let i = 0; i < 35; i++) {
+                const v = (lo + hi) / 2;
+                const f = mass * g * crr + mass * g * slope + rhoCdA * v * v;
+                const p = Math.max(0, f) * v;
+                if (p > usablePower) hi = v; else lo = v;
+            }
+            return Math.max(3, Math.min(85, lo * 3.6));
+        }
+
+        function onPowerInput(value) {
+            document.getElementById('powerValue').textContent = value;
+            if (state.powerSource === "manual") {
+                state.livePowerW = parseFloat(value);
+            }
+        }
+
+        function getCurrentPower() {
+            if (state.powerSource === "device") {
+                return Math.max(0, state.livePowerW || 0);
+            }
+            return parseFloat(document.getElementById('powerInput').value || '0');
+        }
+
+        function onPowerSourceChange() {
+            state.powerSource = document.getElementById('powerSource').value;
+            const isDevice = state.powerSource === "device";
+            document.getElementById('powerInput').disabled = isDevice;
+            document.getElementById('connectDeviceBtn').disabled = !isDevice;
+            document.getElementById('deviceStatus').textContent = isDevice
+                ? (state.powerDevice ? "Device connected" : "No device connected")
+                : "Manual";
+        }
+
+        async function connectPowerDevice() {
+            if (!navigator.bluetooth) {
+                alert("Web Bluetooth not available in this browser. Use Chrome/Edge on HTTPS/localhost.");
+                return;
+            }
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: ['cycling_power'] }, { services: ['fitness_machine'] }],
+                    optionalServices: ['cycling_power', 'fitness_machine']
+                });
+                state.powerDevice = device;
+                const server = await device.gatt.connect();
+
+                // Priority 1: Cycling Power service for power meters.
+                try {
+                    const cpService = await server.getPrimaryService('cycling_power');
+                    const cpChar = await cpService.getCharacteristic('cycling_power_measurement');
+                    await cpChar.startNotifications();
+                    cpChar.addEventListener('characteristicvaluechanged', onCyclingPowerChanged);
+                    state.powerCharacteristic = cpChar;
+                    document.getElementById('deviceStatus').textContent = `Connected: ${device.name || 'Power Meter'}`;
+                    return;
+                } catch (_) {}
+
+                // Priority 2: FTMS Indoor Bike Data for smart trainers.
+                const ftmsService = await server.getPrimaryService('fitness_machine');
+                const bikeDataChar = await ftmsService.getCharacteristic(0x2AD2);
+                await bikeDataChar.startNotifications();
+                bikeDataChar.addEventListener('characteristicvaluechanged', onIndoorBikeDataChanged);
+                state.powerCharacteristic = bikeDataChar;
+                document.getElementById('deviceStatus').textContent = `Connected: ${device.name || 'Trainer'}`;
+            } catch (err) {
+                document.getElementById('deviceStatus').textContent = "Connection failed";
+                alert(`Device connection failed: ${err.message || err}`);
+            }
+        }
+
+        function onCyclingPowerChanged(event) {
+            const dv = event.target.value;
+            // Flags (uint16) + instantaneous power (int16 LE)
+            if (dv.byteLength < 4) return;
+            const power = dv.getInt16(2, true);
+            state.livePowerW = Math.max(0, power);
+            document.getElementById('powerValue').textContent = String(Math.round(state.livePowerW));
+        }
+
+        function onIndoorBikeDataChanged(event) {
+            const dv = event.target.value;
+            if (dv.byteLength < 2) return;
+            const flags = dv.getUint16(0, true);
+            let offset = 2;
+
+            // FTMS Indoor Bike Data parsing (common subset), skip fields based on flags.
+            if (flags & (1 << 0)) offset += 2; // instant speed
+            if (flags & (1 << 1)) offset += 2; // avg speed
+            if (flags & (1 << 2)) offset += 2; // instant cadence
+            if (flags & (1 << 3)) offset += 2; // avg cadence
+            if (flags & (1 << 4)) offset += 3; // total distance
+            if (flags & (1 << 5)) {
+                if (dv.byteLength >= offset + 2) {
+                    const power = dv.getInt16(offset, true);
+                    state.livePowerW = Math.max(0, power);
+                    document.getElementById('powerValue').textContent = String(Math.round(state.livePowerW));
+                }
+            }
+        }
+
+        window.onload = async function() {
+            await fetchProfile();
+            init();
+            onPowerSourceChange();
+            // Show Bluetooth secure-context warning when necessary
+            try {
+                const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+                if (!window.isSecureContext && !isLocalhost) {
+                    const w = document.getElementById('bt-warning');
+                    if (w) w.style.display = 'block';
+                    console.warn('Web Bluetooth requires HTTPS. Serve via localhost or HTTPS to use device connections.');
+                }
+            } catch (e) {}
+        };
     </script>
 </body>
 </html>
