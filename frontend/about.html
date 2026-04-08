@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>About VeloVerse</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #0b1220;
+            --text: #edf3ff;
+            --muted: #9fb0cb;
+            --panel: rgba(14, 24, 40, 0.88);
+            --border: rgba(151, 170, 201, 0.32);
+        }
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg: #f6f9ff;
+                --text: #1d2a3d;
+                --muted: #5a6880;
+                --panel: rgba(255, 255, 255, 0.94);
+                --border: rgba(45, 73, 112, 0.24);
+            }
+        }
+        body {
+            margin: 0;
+            font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at 8% 14%, rgba(38, 120, 247, 0.14), transparent 36%),
+                radial-gradient(circle at 86% 0%, rgba(44, 197, 129, 0.16), transparent 35%),
+                var(--bg);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        main {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+        }
+        a { color: inherit; }
+        p { color: var(--muted); line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <main>
+        <p><a href="/index.html">Back to Home</a></p>
+        <h1>About VeloVerse</h1>
+        <p>VeloVerse turns route data into immersive ride simulations for training, planning, and analysis.</p>
+        <p>Current focus includes realistic route processing, 3D ride playback, and rider-specific pacing feedback.</p>
+        <p>The product roadmap expands into weather-aware planning, biome context, and a future desktop experience.</p>
+    </main>
+</body>
+</html>

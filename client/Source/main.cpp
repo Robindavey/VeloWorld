@@ -6,13 +6,13 @@
 #include <chrono>
 #include <cmath>
 
-#include "VeloWorld/Trainer/TrainerManager.h"
-#include "VeloWorld/Sensors/BLEHRMDriver.h"
-#include "VeloWorld/Physics/RouteProfile.h"
-#include "VeloWorld/Physics/PhysicsEngine.h"
-#include "VeloWorld/Physics/SimulatedTrainer.h"
+#include "VeloVerse/Trainer/TrainerManager.h"
+#include "VeloVerse/Sensors/BLEHRMDriver.h"
+#include "VeloVerse/Physics/RouteProfile.h"
+#include "VeloVerse/Physics/PhysicsEngine.h"
+#include "VeloVerse/Physics/SimulatedTrainer.h"
 
-using namespace VeloWorld;
+using namespace VeloVerse;
 
 // Mock route data for demonstration
 struct RouteSummary {
@@ -93,7 +93,7 @@ void sensorDiscoveryLoop(Trainer::TrainerManager& tm, Sensors::BLEHRMDriver& hrm
 }
 
 int main() {
-    std::cout << "🚴 VeloWorld Cycling Simulator" << std::endl;
+    std::cout << "🚴 VeloVerse Cycling Simulator" << std::endl;
     std::cout << "================================" << std::endl;
 
     // Step 1: Load route from file
@@ -185,6 +185,6 @@ int main() {
         }
     }
 
-    std::cout << "\n🏁 Simulation ended. Thanks for using VeloWorld!" << std::endl;
+    std::cout << "\n🏁 Simulation ended. Thanks for using VeloVerse!" << std::endl;
     return 0;
 }

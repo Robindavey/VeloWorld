@@ -13,7 +13,7 @@ import aiohttp
 import numpy as np
 from pydantic import BaseModel
 
-from veloworld_pipeline import RouteData, RoutePoint, PipelineResult, ProcessingStage
+from veloverse_pipeline import RouteData, RoutePoint, PipelineResult, ProcessingStage
 
 
 class MapMatchingConfig(BaseModel):

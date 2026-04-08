@@ -13,8 +13,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/veloworld/backend/internal/queue"
-	"github.com/veloworld/backend/internal/storage"
+	"github.com/veloverse/backend/internal/queue"
+	"github.com/veloverse/backend/internal/storage"
 )
 
 type Handler struct {
@@ -40,6 +40,10 @@ type UploadRouteRequest struct {
 	Description string `json:"description,omitempty"`
 }
 
+type UpdateVisibilityRequest struct {
+	Visibility string `json:"visibility"`
+}
+
 type RenderPoint struct {
 	DistanceM  float64 `json:"distance_m"`
 	ElevationM float64 `json:"elevation_m"`
@@ -55,9 +59,9 @@ type RouteRenderDataResponse struct {
 }
 
 type routeRenderCachePayload struct {
-	RouteID        string       `json:"route_id"`
-	DistanceM      float64      `json:"distance_m"`
-	ElevationGainM float64      `json:"elevation_gain_m"`
+	RouteID        string        `json:"route_id"`
+	DistanceM      float64       `json:"distance_m"`
+	ElevationGainM float64       `json:"elevation_gain_m"`
 	ProfilePoints  []RenderPoint `json:"profile_points"`
 }
 
@@ -346,6 +350,118 @@ func (h *Handler) PublishRoute(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "published"})
+}
+
+func (h *Handler) UpdateVisibility(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("user_id").(uuid.UUID)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	routeID, err := uuid.Parse(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid route ID", http.StatusBadRequest)
+		return
+	}
+
+	var req UpdateVisibilityRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	visibility := strings.ToLower(strings.TrimSpace(req.Visibility))
+	if visibility != "public" && visibility != "private" {
+		http.Error(w, "visibility must be 'public' or 'private'", http.StatusBadRequest)
+		return
+	}
+
+	isPublic := visibility == "public"
+	result, err := h.DB.Exec(`
+		UPDATE routes
+		SET is_public = $1
+		WHERE id = $2 AND owner_id = $3`,
+		isPublic, routeID, userID)
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+	if rowsAffected == 0 {
+		http.Error(w, "Route not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"route_id": routeID, "visibility": visibility, "is_public": isPublic})
+}
+
+func (h *Handler) RetryRouteProcessing(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("user_id").(uuid.UUID)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	routeID, err := uuid.Parse(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid route ID", http.StatusBadRequest)
+		return
+	}
+
+	var s3Key string
+	var sourceFormat string
+	var processingStatus string
+	err = h.DB.QueryRow(`
+		SELECT s3_key, source_format, processing_status
+		FROM routes
+		WHERE id = $1 AND owner_id = $2`,
+		routeID, userID).Scan(&s3Key, &sourceFormat, &processingStatus)
+	if err == sql.ErrNoRows {
+		http.Error(w, "Route not found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	if processingStatus == "ready" {
+		http.Error(w, "Route is already ready", http.StatusBadRequest)
+		return
+	}
+
+	if s3Key == "" || sourceFormat == "" {
+		http.Error(w, "Route file metadata missing", http.StatusBadRequest)
+		return
+	}
+
+	_, err = h.DB.Exec(`
+		UPDATE routes
+		SET processing_status = 'queued'
+		WHERE id = $1 AND owner_id = $2`,
+		routeID, userID)
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	err = h.Queue.EnqueueRouteProcessing(r.Context(), routeID, s3Key, normalizeSourceFormat(sourceFormat))
+	if err != nil {
+		http.Error(w, "Failed to queue processing job", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"route_id": routeID, "status": "queued", "retried": true})
 }
 
 func (h *Handler) GetRoutePackage(w http.ResponseWriter, r *http.Request) {

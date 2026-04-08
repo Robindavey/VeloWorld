@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VeloWorld Demo</title>
+    <title>VeloVerse Demo</title>
     <link
         rel="stylesheet"
         href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -90,9 +90,62 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script>
-        const API_BASE = 'http://localhost:8080';
-        const token = localStorage.getItem('veloworld_token');
+        function resolveApiBase() {
+            const raw = (localStorage.getItem('veloverse_api_base') || '').trim();
+            if (!raw || raw === '/' || raw === '//' || raw === '/auth' || raw === '/routes') {
+                return '/api';
+            }
+            if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
+                return raw.replace(/\/+$/, '');
+            }
+            return '/api';
+        }
+
+        const API_BASE = resolveApiBase();
+        const API_HOST_FALLBACK = `http://${window.location.hostname}:8080`;
+        const API_LOCALHOST_FALLBACK = 'http://localhost:8080';
+        const token = localStorage.getItem('veloverse_token');
         if (!token) window.location.href = '/index.html';
+
+        function apiCandidates(path) {
+            const cleanPath = path.startsWith('/') ? path : `/${path}`;
+            const candidates = [`${API_BASE}${cleanPath}`];
+
+            const isHttpsPage = window.location.protocol === 'https:';
+            if (!isHttpsPage) {
+                candidates.push(`${API_HOST_FALLBACK}${cleanPath}`);
+            }
+
+            const isLocalBrowser = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            if (!isHttpsPage && isLocalBrowser) {
+                candidates.push(`${API_LOCALHOST_FALLBACK}${cleanPath}`);
+            }
+
+            return [...new Set(candidates)];
+        }
+
+        async function apiFetch(path, options = {}) {
+            const targets = apiCandidates(path);
+            let lastError = null;
+
+            for (let i = 0; i < targets.length; i++) {
+                const target = targets[i];
+                try {
+                    const resp = await fetch(target, options);
+                    const firstAttemptOnProxyPath = (i === 0 && API_BASE.startsWith('/'));
+                    if (firstAttemptOnProxyPath && (resp.status === 404 || resp.status === 501)) {
+                        continue;
+                    }
+                    if (resp.status === 501) {
+                        continue;
+                    }
+                    return resp;
+                } catch (err) {
+                    lastError = err;
+                }
+            }
+            throw (lastError || new Error('Network request failed'));
+        }
 
         const state = {
             routes: [],
@@ -121,7 +174,7 @@
 
         async function fetchProfile() {
             try {
-                const res = await fetch(`${API_BASE}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+                const res = await apiFetch('/auth/me', { headers: { Authorization: `Bearer ${token}` } });
                 const me = await res.json();
                 state.rider.weightKg = me.rider_weight_kg || 75;
                 state.rider.ftpW = me.ftp_w || 210;
@@ -135,7 +188,7 @@
             const ftp = parseFloat(document.getElementById('ftpInput').value || '210');
             state.rider.weightKg = weight;
             state.rider.ftpW = ftp;
-            await fetch(`${API_BASE}/auth/profile`, {
+            await apiFetch('/auth/profile', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ rider_weight_kg: weight, ftp_w: ftp })
@@ -144,7 +197,7 @@
         }
 
         async function fetchRoutes() {
-            const res = await fetch(`${API_BASE}/routes`, { headers: { Authorization: `Bearer ${token}` } });
+            const res = await apiFetch('/routes', { headers: { Authorization: `Bearer ${token}` } });
             state.routes = await res.json();
             const sel = document.getElementById('routeSelect');
             sel.innerHTML = state.routes
@@ -155,7 +208,7 @@
         async function loadSelectedRoute() {
             const routeId = document.getElementById('routeSelect').value;
             if (!routeId) return;
-            const res = await fetch(`${API_BASE}/routes/${routeId}/render-data`, { headers: { Authorization: `Bearer ${token}` } });
+            const res = await apiFetch(`/routes/${routeId}/render-data`, { headers: { Authorization: `Bearer ${token}` } });
             const data = await res.json();
             state.profile = data.profile_points || [];
             state.distanceM = data.distance_m || 0;

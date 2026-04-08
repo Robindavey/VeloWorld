@@ -14,7 +14,7 @@ import fitparse
 import numpy as np
 from pydantic import ValidationError
 
-from veloworld_pipeline import RouteData, RoutePoint, PipelineResult, ProcessingStage
+from veloverse_pipeline import RouteData, RoutePoint, PipelineResult, ProcessingStage
 
 
 class RouteParser:

@@ -1,4 +1,4 @@
-# VeloWorld Route Processing Pipeline Requirements
+# VeloVerse Route Processing Pipeline Requirements
 
 # Core geospatial processing
 GDAL==3.6.4

@@ -1,536 +1,1166 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VeloWorld - Cycling Simulator</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VeloVerse</title>
     <style>
-        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); color: #f0f6fc; min-height: 100vh; }
-        .container { max-width: 900px; margin: 40px auto; padding: 30px; background: rgba(22, 27, 34, 0.95); border-radius: 15px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); border: 1px solid #30363d; }
-        h1 { text-align: center; background: linear-gradient(45deg, #58a6ff, #f78166); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 20px; }
-        p { text-align: center; color: #8b949e; margin-bottom: 30px; }
-        .links { text-align: center; margin-bottom: 30px; }
-        .links a { display: inline-block; margin: 0 15px; padding: 12px 24px; background: #238636; color: #fff; text-decoration: none; border-radius: 8px; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(35, 134, 54, 0.3); }
-        .links a:hover { background: #2ea043; transform: translateY(-2px); box-shadow: 0 6px 16px rgba(35, 134, 54, 0.4); }
-        .auth-section, .upload-section, .routes-section, .demo-section { margin-bottom: 30px; padding: 20px; background: rgba(13, 17, 23, 0.8); border-radius: 10px; border: 1px solid #30363d; }
-        h2 { color: #58a6ff; margin-bottom: 15px; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; color: #c9d1d9; }
-        input, textarea, select { width: 100%; padding: 10px; border: 1px solid #30363d; border-radius: 6px; background: #0d1117; color: #f0f6fc; box-sizing: border-box; }
-        button { padding: 12px 20px; background: #238636; color: #fff; border: none; border-radius: 6px; cursor: pointer; transition: all 0.3s ease; }
-        button:hover { background: #2ea043; transform: translateY(-1px); }
+        :root {
+            color-scheme: light dark;
+            --bg: #09121f;
+            --panel: rgba(12, 24, 40, 0.86);
+            --text: #eaf2ff;
+            --muted: #98a8c2;
+            --accent: #1fbf79;
+            --accent-2: #228be6;
+            --border: rgba(159, 180, 214, 0.24);
+            --danger: #d64545;
+        }
+
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg: #f5faff;
+                --panel: rgba(255, 255, 255, 0.94);
+                --text: #18263a;
+                --muted: #586882;
+                --accent: #0e9d60;
+                --accent-2: #0f6cc8;
+                --border: rgba(57, 87, 126, 0.22);
+                --danger: #b42318;
+            }
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at 6% 16%, rgba(18, 133, 255, 0.14), transparent 38%),
+                radial-gradient(circle at 85% 2%, rgba(31, 191, 121, 0.16), transparent 32%),
+                linear-gradient(180deg, var(--bg), color-mix(in oklab, var(--bg), black 6%));
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .shell {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: grid;
+            gap: 18px;
+        }
+
+        .card {
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: var(--panel);
+            padding: 22px;
+            backdrop-filter: blur(6px);
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .brand {
+            font-size: clamp(1.4rem, 2.1vw, 2.2rem);
+            margin: 0;
+        }
+
+        .muted { color: var(--muted); }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn, button {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 14px;
+            cursor: pointer;
+            font-weight: 700;
+            text-decoration: none;
+            color: #f6fbff;
+            background: linear-gradient(135deg, var(--accent-2), #1558a3);
+        }
+
+        .btn.secondary, button.secondary {
+            color: var(--text);
+            background: transparent;
+        }
+
+        @media (prefers-color-scheme: light) {
+            .btn, button {
+                color: #ffffff;
+                background: linear-gradient(135deg, #0f6cc8, #1f8ef5);
+            }
+        }
+
+        .landing {
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 16px;
+        }
+
+        .hero h2 {
+            margin-top: 0;
+            font-size: clamp(1.5rem, 2.6vw, 2.4rem);
+        }
+
+        .hero p { line-height: 1.55; }
+
+        .form-group {
+            display: grid;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        input {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font: inherit;
+            background: color-mix(in oklab, var(--panel), black 8%);
+            color: var(--text);
+        }
+
+        #auth-message { min-height: 1.2em; font-weight: 700; margin: 8px 0 0; }
+        .error { color: var(--danger); }
+
+        .dashboard-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .route-item {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            margin: 10px 0;
+            background: color-mix(in oklab, var(--panel), black 7%);
+        }
+
+        .route-item h3 { margin: 0 0 8px; }
+        .route-item p { margin: 6px 0; color: var(--muted); }
+
+        .route-tools {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+            align-items: center;
+        }
+
+        .route-tools select {
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            background: color-mix(in oklab, var(--panel), black 8%);
+            color: var(--text);
+            padding: 8px 10px;
+        }
+
+        .preview-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .preview-tile {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 8px;
+            background: color-mix(in oklab, var(--panel), black 5%);
+        }
+
+        .preview-title {
+            font-size: 0.78rem;
+            color: var(--muted);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .preview-canvas {
+            width: 100%;
+            height: 80px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: block;
+            background: color-mix(in oklab, var(--panel), black 10%);
+        }
+
+        .social-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .social-card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            background: color-mix(in oklab, var(--panel), black 6%);
+        }
+
+        .social-card h3 { margin: 0 0 8px; }
+        .social-list { display: grid; gap: 8px; margin-top: 8px; }
+        .social-item {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 8px;
+            background: color-mix(in oklab, var(--panel), black 5%);
+        }
+
+        .social-top {
+            margin-top: 14px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            background: color-mix(in oklab, var(--panel), black 5%);
+            display: grid;
+            gap: 12px;
+        }
+
+        .social-top-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .chip {
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 6px 10px;
+            background: transparent;
+            color: var(--text);
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .inline-search {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .inline-search input {
+            flex: 1;
+            min-width: 180px;
+        }
+
+        .search-recommend-wrap {
+            position: relative;
+        }
+
+        .search-recommend-list {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            z-index: 20;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: color-mix(in oklab, var(--panel), black 5%);
+            overflow: hidden;
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+        }
+
+        .search-recommend-item {
+            width: 100%;
+            text-align: left;
+            border: 0;
+            border-bottom: 1px solid var(--border);
+            border-radius: 0;
+            background: transparent;
+            color: var(--text);
+            padding: 10px 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .search-recommend-item:last-child {
+            border-bottom: 0;
+        }
+
+        .search-recommend-meta {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-top: 2px;
+            font-weight: 500;
+        }
+
+        .status-ready { color: #2fbf71; }
+        .status-processing, .status-queued { color: #d79e23; }
+        .status-failed { color: var(--danger); }
+
         .hidden { display: none; }
-        .route-item { padding: 15px; margin-bottom: 10px; background: rgba(48, 54, 61, 0.5); border-radius: 8px; border: 1px solid #30363d; }
-        .route-item h3 { margin: 0 0 10px 0; color: #58a6ff; }
-        .route-item p { margin: 5px 0; color: #8b949e; }
-        .status-ready { color: #56d364; }
-        .status-processing { color: #d29922; }
-        .status-failed { color: #f85149; }
-        .status-queued { color: #d29922; }
+
+        @media (max-width: 880px) {
+            body { padding: 12px; }
+            .card { padding: 16px; }
+            .landing { grid-template-columns: 1fr; }
+            .preview-row { grid-template-columns: 1fr; }
+            .social-top-grid { grid-template-columns: 1fr; }
+            .social-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🚴 VeloWorld</h1>
-        <p>Cycling Simulator - Upload routes and start riding!</p>
-        <p>
-            <button onclick="window.location.href='/map-tracer.html'">Map Tracer</button>
-            <button onclick="window.location.href='/route-3d.html'">Route 3D</button>
-            <button onclick="window.location.href='/profile.html'">Rider Profile</button>
-        </p>
+    <main class="shell">
+        <section class="card topbar">
+            <h1 class="brand">VeloVerse</h1>
+            <nav class="actions">
+                <a class="btn secondary" href="/about.html">About</a>
+                <a class="btn secondary" href="/contact.html">Contact</a>
+                <a class="btn secondary" href="/profile.html">My Profile</a>
+                <a class="btn secondary" href="/map-tracer.html">Map Tracer</a>
+                <a class="btn secondary" href="/route-3d.html">Route 3D</a>
+                <button id="logout-btn" class="secondary hidden" onclick="logout()">Logout</button>
+            </nav>
+        </section>
 
-        <!-- Authentication Section -->
-        <div id="auth-section" class="auth-section">
-            <h2>Login / Register</h2>
-            <div class="form-group">
-                <label for="email">Email:</label>
-                <input type="email" id="email" required>
+        <section class="card landing" id="landing-section">
+            <div class="hero">
+                <h2>Train on your own routes with simulation-grade feedback.</h2>
+                <p class="muted">Upload your route once, track processing, and open it in map or 3D mode with power-aware playback.</p>
+                <div class="actions">
+                    <a class="btn" href="/upload.html">Upload Route</a>
+                    <a class="btn secondary" href="/route-3d.html">Open 3D Viewer</a>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="password">Password:</label>
-                <input type="password" id="password" required>
-            </div>
-            <button onclick="login()">Login</button>
-            <a href="/register.html" style="margin-left: 12px; color: #007bff; text-decoration: none;">Create account</a>
-            <p id="auth-message"></p>
-        </div>
 
-        <!-- Upload Section -->
-        <div id="upload-section" class="upload-section hidden">
-            <h2>Upload Route</h2>
-            <div class="form-group">
-                <label for="route-name">Route Name:</label>
-                <input type="text" id="route-name" placeholder="Optional - will use filename if empty">
-            </div>
-            <div class="form-group">
-                <label for="route-description">Description:</label>
-                <textarea id="route-description" rows="3" placeholder="Optional description"></textarea>
-            </div>
-            <div class="form-group">
-                <label for="route-file">GPX File:</label>
-                <input type="file" id="route-file" accept=".gpx,.fit,.fits,.tcx" required>
-            </div>
-            <button onclick="uploadRoute()">Upload Route</button>
-            <p id="upload-message"></p>
-        </div>
-
-        <!-- Routes Section -->
-        <div id="routes-section" class="routes-section hidden">
-            <h2>Your Routes</h2>
-            <div id="routes-list">
-                <p>No routes yet. Upload your first route!</p>
-            </div>
-        </div>
-
-        <!-- Demo Section -->
-        <div id="demo-section" class="routes-section hidden">
-            <h2>🚴 Map Tracer</h2>
-            <div class="form-group">
-                <label for="demo-toggle">Enable Demo Mode:</label>
-                <input type="checkbox" id="demo-toggle" onchange="toggleDemo()">
-            </div>
-            <div id="demo-controls" class="hidden">
+            <div id="auth-section">
+                <h3 style="margin-top:0;">Login</h3>
                 <div class="form-group">
-                    <label for="power-slider">Power Output (Watts):</label>
-                    <input type="range" id="power-slider" min="0" max="400" value="150" oninput="updatePower(this.value)">
-                    <span id="power-value">150</span> W
+                    <label for="email">Email</label>
+                    <input type="email" id="email" required />
                 </div>
                 <div class="form-group">
-                    <label for="time-multiplier">Time Multiplier:</label>
-                    <select id="time-multiplier">
-                        <option value="1">1x</option>
-                        <option value="2">2x</option>
-                        <option value="5">5x</option>
-                        <option value="10">10x</option>
-                    </select>
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required />
                 </div>
-                <div id="demo-display">
-                    <h3>Elevation Profile</h3>
-                    <canvas id="elevation-canvas" width="800" height="200" style="border: 1px solid #ddd;"></canvas>
-                    <div id="hud">
-                        <p>Distance: <span id="distance">0.0</span> km</p>
-                        <p>Speed: <span id="speed">0.0</span> km/h</p>
-                        <p>Power: <span id="current-power">150</span> W</p>
-                        <p>Grade: <span id="grade">0.0</span>%</p>
-                        <p>Time: <span id="time">00:00</span></p>
+                <div class="actions">
+                    <button onclick="login()">Login</button>
+                    <a class="btn secondary" href="/register.html">Create Account</a>
+                </div>
+                <p id="auth-message"></p>
+            </div>
+        </section>
+
+        <section id="routes-section" class="card hidden">
+            <div class="dashboard-head">
+                <div>
+                    <h2 style="margin:0;">My Route Dashboard</h2>
+                    <p class="muted" style="margin:6px 0 0;">Your routes, statuses, and one-click launch into 3D.</p>
+                </div>
+                <div class="actions">
+                    <a class="btn" href="/upload.html">Upload New Route</a>
+                    <button class="secondary" onclick="loadRoutes()">Refresh</button>
+                </div>
+            </div>
+
+            <div class="social-top">
+                <h3 style="margin:0;">Social Search</h3>
+                <div class="social-top-grid">
+                    <div>
+                        <div class="search-recommend-wrap">
+                            <div class="inline-search">
+                                <input id="userSearchInput" type="text" placeholder="Find users by name or email" />
+                                <button class="secondary" onclick="searchUsersToFollow()">Search Users</button>
+                            </div>
+                            <div id="userSearchSuggestions" class="search-recommend-list hidden"></div>
+                        </div>
+                        <div id="userSearchResults" class="social-list"></div>
                     </div>
                 </div>
+                <div>
+                    <div class="muted">Suggested people from your social analytics</div>
+                    <div id="socialSuggestions" class="chip-row"></div>
+                </div>
             </div>
-        </div>
-    </div>
+
+            <div id="routes-list" style="margin-top:10px;">
+                <p class="muted">No routes yet. Upload your first route.</p>
+            </div>
+
+            <div class="social-grid">
+                <div class="social-card">
+                    <h3 style="margin-top:14px;">Incoming Follow Requests</h3>
+                    <div id="incomingFollowRequests" class="social-list"></div>
+                </div>
+
+                <div class="social-card">
+                    <h3>Sent Follow Requests</h3>
+                    <div id="outgoingFollowRequests" class="social-list"></div>
+                </div>
+
+                <div class="social-card">
+                    <h3>Route Collection</h3>
+                    <div id="collectionList" class="social-list"></div>
+                </div>
+            </div>
+        </section>
+    </main>
 
     <script>
-        const API_BASE = 'http://localhost:8080';
-        let authToken = localStorage.getItem('veloworld_token');
-        let selectedRoute = null;
-
-        // Check if already logged in
-        if (authToken) {
-            showLoggedIn();
+        function resolveApiBase() {
+            const raw = (localStorage.getItem('veloverse_api_base') || '').trim();
+            if (!raw || raw === '/' || raw === '//' || raw === '/auth' || raw === '/routes') {
+                return '/api';
+            }
+            if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
+                return raw.replace(/\/+$/, '');
+            }
+            return '/api';
         }
+
+        const API_BASE = resolveApiBase();
+        const API_HOST_FALLBACK = `http://${window.location.hostname}:8080`;
+        const API_LOCALHOST_FALLBACK = 'http://localhost:8080';
+        let authToken = localStorage.getItem('veloverse_token');
+        const SOCIAL_ANALYTICS_KEY = 'veloverse_social_analytics';
+        let userSearchDebounceTimer = null;
+        let userSearchSuggestionEventsBound = false;
+
+        function apiCandidates(path) {
+            const cleanPath = path.startsWith('/') ? path : `/${path}`;
+            const candidates = [`${API_BASE}${cleanPath}`];
+
+            const isHttpsPage = window.location.protocol === 'https:';
+            if (!isHttpsPage) {
+                candidates.push(`${API_HOST_FALLBACK}${cleanPath}`);
+            }
+
+            const isLocalBrowser = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            if (!isHttpsPage && isLocalBrowser) {
+                candidates.push(`${API_LOCALHOST_FALLBACK}${cleanPath}`);
+            }
+
+            return [...new Set(candidates)];
+        }
+
+        async function apiFetch(path, options = {}) {
+            const targets = apiCandidates(path);
+            let lastError = null;
+
+            for (let i = 0; i < targets.length; i++) {
+                const target = targets[i];
+                try {
+                    const resp = await fetch(target, options);
+                    // Frontend static server without proxy returns 404/501 for API routes.
+                    const firstAttemptOnProxyPath = (i === 0 && API_BASE.startsWith('/'));
+                    if (firstAttemptOnProxyPath && (resp.status === 404 || resp.status === 501)) {
+                        continue;
+                    }
+                    // Saved stale API base like '/' may resolve to '/auth/login' and return 501.
+                    if (resp.status === 501) {
+                        continue;
+                    }
+                    return resp;
+                } catch (err) {
+                    lastError = err;
+                }
+            }
+
+            throw (lastError || new Error('Network request failed'));
+        }
+
+        async function readApiPayload(response) {
+            const text = await response.text();
+            let json = null;
+            if (text) {
+                try {
+                    json = JSON.parse(text);
+                } catch (_) {
+                    json = null;
+                }
+            }
+            return { text, json };
+        }
+
+        function apiErrorMessage(response, payload, fallback) {
+            if (response.status === 401) {
+                return 'Your session has expired. Please log in again.';
+            }
+            if (response.status === 403) {
+                return 'Access denied. You may need an accepted follow request for this action.';
+            }
+            const fromJson = payload?.json?.error || payload?.json?.message;
+            const fromText = (payload?.text || '').trim();
+            return fromJson || fromText || fallback;
+        }
+
+        if (authToken) showLoggedIn();
 
         async function login() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-
-            try {
-                const response = await fetch(`${API_BASE}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    authToken = data.token;
-                    localStorage.setItem('veloworld_token', authToken);
-                    showLoggedIn();
-                    document.getElementById('auth-message').textContent = 'Login successful!';
-                } else {
-                    const errorText = await response.text();
-                    document.getElementById('auth-message').textContent = errorText || `Login failed (${response.status})`;
-                }
-            } catch (error) {
-                document.getElementById('auth-message').textContent = `Network error: ${error?.message || error}`;
-            }
-        }
-
-        async function register() {
-            const email = document.getElementById('email').value;
+            const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
 
             if (!email || !password) {
-                document.getElementById('auth-message').textContent = 'Email and password are required';
+                setAuthMessage('Email and password are required.', true);
                 return;
             }
 
-            console.log('Registering with:', email, password);
-            console.log('API_BASE:', API_BASE);
-
             try {
-                console.log('Making fetch request to:', `${API_BASE}/auth/register`);
-                const response = await fetch(`${API_BASE}/auth/register`, {
+                const response = await apiFetch('/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
                 });
 
-                console.log('Response status:', response.status);
-                console.log('Response ok:', response.ok);
-
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('Response data:', data);
-                    document.getElementById('auth-message').textContent = 'Registration successful! Please login.';
-                } else {
+                if (!response.ok) {
                     const errorText = await response.text();
-                    console.log('Error text:', errorText);
-                    document.getElementById('auth-message').textContent = errorText || 'Registration failed';
+                    setAuthMessage(errorText || `Login failed (${response.status})`, true);
+                    return;
                 }
+
+                const data = await response.json();
+                authToken = data.token;
+                localStorage.setItem('veloverse_token', authToken);
+                setAuthMessage('Login successful. Loading your routes.');
+                showLoggedIn();
             } catch (error) {
-                console.error('Network error:', error);
-                document.getElementById('auth-message').textContent = `Network error: ${error?.message || error}`;
+                setAuthMessage(`Network error: ${error?.message || error}`, true);
             }
+        }
+
+        function setAuthMessage(text, isError = false) {
+            const msg = document.getElementById('auth-message');
+            msg.textContent = text;
+            msg.className = isError ? 'error' : '';
         }
 
         function showLoggedIn() {
             document.getElementById('auth-section').classList.add('hidden');
-            document.getElementById('upload-section').classList.remove('hidden');
             document.getElementById('routes-section').classList.remove('hidden');
-            document.getElementById('demo-section').classList.remove('hidden');
+            document.getElementById('logout-btn').classList.remove('hidden');
+            initUserSearchRecommendations();
             loadRoutes();
         }
 
-        async function uploadRoute() {
-            const fileInput = document.getElementById('route-file');
-            const name = document.getElementById('route-name').value;
-            const description = document.getElementById('route-description').value;
-
-            if (!fileInput.files[0]) {
-                document.getElementById('upload-message').textContent = 'Please select a file';
+        function initUserSearchRecommendations() {
+            const input = document.getElementById('userSearchInput');
+            if (!input || input.dataset.suggestBound === '1') {
                 return;
             }
 
-            const formData = new FormData();
-            formData.append('route_file', fileInput.files[0]);
-            if (name) formData.append('name', name);
-            if (description) formData.append('description', description);
-
-            try {
-                const response = await fetch(`${API_BASE}/routes`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}` },
-                    body: formData
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    document.getElementById('upload-message').textContent = 'Route uploaded successfully!';
-                    loadRoutes();
-                    // Clear form
-                    document.getElementById('route-name').value = '';
-                    document.getElementById('route-description').value = '';
-                    fileInput.value = '';
-                } else {
-                    document.getElementById('upload-message').textContent = data.error || 'Upload failed';
+            input.dataset.suggestBound = '1';
+            input.addEventListener('input', () => {
+                const q = input.value.trim();
+                if (userSearchDebounceTimer) {
+                    clearTimeout(userSearchDebounceTimer);
                 }
-            } catch (error) {
-                document.getElementById('upload-message').textContent = `Network error: ${error?.message || error}`;
+                if (!q) {
+                    hideUserSearchSuggestions();
+                    return;
+                }
+                userSearchDebounceTimer = setTimeout(() => {
+                    loadUserSearchRecommendations(q);
+                }, 180);
+            });
+
+            input.addEventListener('focus', () => {
+                const q = input.value.trim();
+                if (q) {
+                    loadUserSearchRecommendations(q);
+                }
+            });
+
+            if (!userSearchSuggestionEventsBound) {
+                userSearchSuggestionEventsBound = true;
+                document.addEventListener('click', (event) => {
+                    const wrap = document.querySelector('.search-recommend-wrap');
+                    if (!wrap) return;
+                    if (!wrap.contains(event.target)) {
+                        hideUserSearchSuggestions();
+                    }
+                });
             }
         }
 
-        async function loadRoutes() {
+        function hideUserSearchSuggestions() {
+            const host = document.getElementById('userSearchSuggestions');
+            if (!host) return;
+            host.classList.add('hidden');
+            host.innerHTML = '';
+        }
+
+        async function loadUserSearchRecommendations(queryText) {
+            const host = document.getElementById('userSearchSuggestions');
+            if (!host) return;
+
+            const q = String(queryText || '').trim();
+            if (!q) {
+                hideUserSearchSuggestions();
+                return;
+            }
+
             try {
-                const response = await fetch(`${API_BASE}/routes`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                const response = await apiFetch(`/social/users/search?q=${encodeURIComponent(q)}`, {
+                    headers: { Authorization: `Bearer ${authToken}` }
                 });
-
-                const routes = await response.json();
-
-                if (response.ok) {
-                    displayRoutes(routes);
-                } else {
-                    document.getElementById('routes-list').innerHTML = '<p>Failed to load routes</p>';
+                const payload = await readApiPayload(response);
+                if (!response.ok) {
+                    hideUserSearchSuggestions();
+                    return;
                 }
+
+                const users = (Array.isArray(payload.json) ? payload.json : []).slice(0, 6);
+                if (!users.length) {
+                    hideUserSearchSuggestions();
+                    return;
+                }
+
+                host.innerHTML = users.map(u => {
+                    const displayName = (u.name || u.email || 'User').replace(/'/g, "\\'");
+                    const displayEmail = (u.email || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    return `
+                        <button class="search-recommend-item" onclick="applyUserSearchSuggestion('${displayName}')">
+                            ${u.name || u.email}
+                            <span class="search-recommend-meta">${displayEmail} • ${formatRelationshipStatus(u.relationship_status)}</span>
+                        </button>
+                    `;
+                }).join('');
+                host.classList.remove('hidden');
+            } catch (_) {
+                hideUserSearchSuggestions();
+            }
+        }
+
+        function applyUserSearchSuggestion(value) {
+            const input = document.getElementById('userSearchInput');
+            if (!input) return;
+            input.value = value || '';
+            hideUserSearchSuggestions();
+            searchUsersToFollow();
+        }
+
+        async function loadRoutes() {
+            const list = document.getElementById('routes-list');
+            list.innerHTML = '<p class="muted">Loading routes...</p>';
+
+            try {
+                const response = await apiFetch('/routes', {
+                    headers: { Authorization: `Bearer ${authToken}` }
+                });
+                const payload = await readApiPayload(response);
+                if (!response.ok) throw new Error(apiErrorMessage(response, payload, 'Failed to load routes'));
+                const routes = Array.isArray(payload.json) ? payload.json : [];
+                displayRoutes(routes);
+                await loadSocialData();
             } catch (error) {
-                document.getElementById('routes-list').innerHTML = `<p>Network error: ${error?.message || error}</p>`;
+                list.innerHTML = `<p class="error">${error?.message || error}</p>`;
             }
         }
 
         function displayRoutes(routes) {
-            window.cachedRoutes = routes;
             const container = document.getElementById('routes-list');
+            window.cachedRoutes = routes;
 
-            if (routes.length === 0) {
-                container.innerHTML = '<p>No routes yet. Upload your first route!</p>';
+            if (!routes.length) {
+                container.innerHTML = '<p class="muted">No routes yet. Upload your first route.</p>';
                 return;
             }
 
             container.innerHTML = routes.map(route => `
                 <div class="route-item">
-                    <h3>${route.name}</h3>
+                    <h3>${route.name || 'Unnamed route'}</h3>
                     <p>${route.description || 'No description'}</p>
                     <p>Distance: ${route.distance_m ? (route.distance_m / 1000).toFixed(1) + ' km' : 'Unknown'}</p>
                     <p>Elevation Gain: ${route.elevation_gain_m ? route.elevation_gain_m.toFixed(0) + ' m' : 'Unknown'}</p>
                     <p>Avg Grade: ${calculateAverageGrade(route.distance_m, route.elevation_gain_m)}</p>
                     <p>Status: <span class="status-${route.processing_status}">${route.processing_status}</span></p>
-                    <p>Created: ${new Date(route.created_at).toLocaleDateString()}</p>
-                    ${route.processing_status === 'ready' ? '<button onclick="startRide(\'' + route.id + '\')">Start Ride</button>' : ''}
+                    <p>Visibility: <strong>${route.is_public ? 'Public' : 'Private'}</strong></p>
+                    <p>Created: ${route.created_at ? new Date(route.created_at).toLocaleDateString() : 'Unknown'}</p>
+                    <div class="route-tools">
+                        ${route.processing_status === 'ready'
+                            ? '<button onclick="openRoute3D(\'' + route.id + '\')">Open In 3D</button>'
+                            : ''}
+                        <button class="secondary" onclick="deleteRoute('${route.id}', '${(route.name || 'this route').replace(/'/g, "\\'")}')">Delete</button>
+                        <label for="vis-${route.id}" class="muted">Tag</label>
+                        <select id="vis-${route.id}" onchange="updateRouteVisibility('${route.id}', this.value)">
+                            <option value="private" ${route.is_public ? '' : 'selected'}>Private</option>
+                            <option value="public" ${route.is_public ? 'selected' : ''}>Public</option>
+                        </select>
+                    </div>
+                    <div class="preview-row">
+                        <div class="preview-tile">
+                            <div class="preview-title">Elevation Preview</div>
+                            <canvas id="elev-${route.id}" class="preview-canvas" width="360" height="80"></canvas>
+                        </div>
+                        <div class="preview-tile">
+                            <div class="preview-title">Map Preview</div>
+                            <canvas id="map-${route.id}" class="preview-canvas" width="360" height="80"></canvas>
+                        </div>
+                    </div>
                 </div>
+            `).join('');
+
+            for (const route of routes.slice(0, 8)) {
+                if (route.processing_status === 'ready') {
+                    drawRoutePreviews(route.id);
+                }
+            }
+        }
+
+        async function updateRouteVisibility(routeId, visibility) {
+            try {
+                const response = await apiFetch(`/routes/${routeId}/visibility`, {
+                    method: 'PUT',
+                    headers: {
+                        Authorization: `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ visibility })
+                });
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(text || 'Failed to update visibility');
+                }
+            } catch (error) {
+                alert(error?.message || String(error));
+                loadRoutes();
+            }
+        }
+
+        async function deleteRoute(routeId, routeName) {
+            if (!routeId) return;
+            const ok = window.confirm(`Are you sure you want to delete ${routeName || 'this route'}?`);
+            if (!ok) return;
+
+            try {
+                const response = await apiFetch(`/routes/${routeId}`, {
+                    method: 'DELETE',
+                    headers: { Authorization: `Bearer ${authToken}` }
+                });
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(text || 'Failed to delete route');
+                }
+
+                await loadRoutes();
+            } catch (error) {
+                alert(error?.message || String(error));
+            }
+        }
+
+        async function drawRoutePreviews(routeId) {
+            const elevCanvas = document.getElementById(`elev-${routeId}`);
+            const mapCanvas = document.getElementById(`map-${routeId}`);
+            if (!elevCanvas || !mapCanvas) return;
+
+            const elevCtx = elevCanvas.getContext('2d');
+            const mapCtx = mapCanvas.getContext('2d');
+            elevCtx.clearRect(0, 0, elevCanvas.width, elevCanvas.height);
+            mapCtx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
+
+            try {
+                const response = await apiFetch(`/routes/${routeId}/render-data`, {
+                    headers: { Authorization: `Bearer ${authToken}` }
+                });
+                const data = await response.json();
+                if (!response.ok || !Array.isArray(data.profile_points) || data.profile_points.length < 2) {
+                    return;
+                }
+
+                drawElevationPreview(elevCanvas, data.profile_points);
+                drawMapPreview(mapCanvas, data.profile_points);
+            } catch (_) {
+                // Keep dashboard resilient even if one preview fetch fails.
+            }
+        }
+
+        function drawElevationPreview(canvas, points) {
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            const elevations = points.map(p => Number(p.elevation_m || 0));
+            const min = Math.min(...elevations);
+            const max = Math.max(...elevations);
+            const span = Math.max(1, max - min);
+            const maxDistance = Math.max(1, Number(points[points.length - 1].distance_m || points.length));
+
+            ctx.strokeStyle = '#3da1ff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            points.forEach((p, i) => {
+                const x = (Number(p.distance_m || i) / maxDistance) * (w - 8) + 4;
+                const y = h - ((Number(p.elevation_m || min) - min) / span) * (h - 12) - 6;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
+        function drawMapPreview(canvas, points) {
+            const ctx = canvas.getContext('2d');
+            const latLon = points.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon));
+            if (latLon.length < 2) return;
+
+            const lats = latLon.map(p => p.lat);
+            const lons = latLon.map(p => p.lon);
+            const minLat = Math.min(...lats);
+            const maxLat = Math.max(...lats);
+            const minLon = Math.min(...lons);
+            const maxLon = Math.max(...lons);
+            const latSpan = Math.max(1e-9, maxLat - minLat);
+            const lonSpan = Math.max(1e-9, maxLon - minLon);
+            const w = canvas.width;
+            const h = canvas.height;
+
+            ctx.strokeStyle = '#1fbf79';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            latLon.forEach((p, i) => {
+                const x = ((p.lon - minLon) / lonSpan) * (w - 8) + 4;
+                const y = h - (((p.lat - minLat) / latSpan) * (h - 8) + 4);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
+        async function loadSocialData() {
+            await Promise.all([loadIncomingFollowRequests(), loadOutgoingFollowRequests(), loadCollections()]);
+            renderSocialSuggestions();
+        }
+
+        function getSocialAnalytics() {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(SOCIAL_ANALYTICS_KEY) || '{}');
+                if (!parsed || typeof parsed !== 'object') return { users: {} };
+                if (!parsed.users || typeof parsed.users !== 'object') parsed.users = {};
+                return parsed;
+            } catch (_) {
+                return { users: {} };
+            }
+        }
+
+        function saveSocialAnalytics(next) {
+            localStorage.setItem(SOCIAL_ANALYTICS_KEY, JSON.stringify(next || { users: {} }));
+        }
+
+        function scoreUserAnalytics(userId, email, name, points) {
+            if (!userId) return;
+            const analytics = getSocialAnalytics();
+            if (!analytics.users[userId]) {
+                analytics.users[userId] = { id: userId, email: email || '', name: name || '', score: 0, touched_at: Date.now() };
+            }
+            const row = analytics.users[userId];
+            row.email = email || row.email;
+            row.name = name || row.name;
+            row.score = Number(row.score || 0) + Number(points || 0);
+            row.touched_at = Date.now();
+            saveSocialAnalytics(analytics);
+        }
+
+        function renderSocialSuggestions() {
+            const host = document.getElementById('socialSuggestions');
+            const analytics = getSocialAnalytics();
+            const users = Object.values(analytics.users || {})
+                .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
+                .slice(0, 8);
+
+            if (!users.length) {
+                host.innerHTML = '<span class="muted">Search and visit users to build suggestions.</span>';
+                return;
+            }
+
+            host.innerHTML = users.map(u => `
+                <button class="chip" onclick="openSocialUserDashboard('${u.id}', '${(u.name || u.email || 'User').replace(/'/g, "\\'")}')">
+                    ${u.name || u.email}
+                </button>
             `).join('');
         }
 
-        function calculateAverageGrade(distanceM, elevationGainM) {
-            if (!distanceM || !elevationGainM || distanceM <= 0) {
-                return 'Unknown';
+        function openSocialUserDashboard(userId, label) {
+            if (!userId) return;
+            scoreUserAnalytics(userId, '', label || '', 5);
+            renderSocialSuggestions();
+            const safeLabel = encodeURIComponent(label || 'User');
+            window.location.href = `/social-user.html?user_id=${encodeURIComponent(userId)}&label=${safeLabel}`;
+        }
+
+        async function searchUsersToFollow() {
+            const q = document.getElementById('userSearchInput').value.trim();
+            const target = document.getElementById('userSearchResults');
+            hideUserSearchSuggestions();
+            if (!q) {
+                target.innerHTML = '<div class="muted">Enter text to search users.</div>';
+                return;
             }
+            try {
+                const response = await apiFetch(`/social/users/search?q=${encodeURIComponent(q)}`, {
+                    headers: { Authorization: `Bearer ${authToken}` }
+                });
+                const payload = await readApiPayload(response);
+                if (!response.ok) throw new Error(apiErrorMessage(response, payload, 'Search failed'));
+                const users = Array.isArray(payload.json) ? payload.json : [];
+
+                if (!users.length) {
+                    target.innerHTML = '<div class="muted">No users found.</div>';
+                    return;
+                }
+
+                target.innerHTML = users.map(u => `
+                    <div class="social-item">
+                        <div><strong>${u.name || u.email}</strong></div>
+                        <div class="muted">${u.email}</div>
+                        <div class="muted">${formatRelationshipStatus(u.relationship_status)}</div>
+                        <div class="route-tools">
+                            ${userSearchActionButtons(u)}
+                            <button onclick="openSocialUserDashboard('${u.id}', '${(u.name || u.email).replace(/'/g, "\\'")}')">Open Dashboard</button>
+                        </div>
+                    </div>
+                `).join('');
+
+                for (const user of users.slice(0, 8)) {
+                    scoreUserAnalytics(user.id, user.email, user.name, 2);
+                }
+                renderSocialSuggestions();
+            } catch (error) {
+                target.innerHTML = `<div class="error">${error?.message || error}</div>`;
+            }
+        }
+
+        async function requestFollow(userId) {
+            try {
+                const response = await apiFetch('/social/follows/requests', {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ user_id: userId })
+                });
+                const payload = await readApiPayload(response);
+                if (!response.ok) throw new Error(apiErrorMessage(response, payload, 'Failed to request follow'));
+                scoreUserAnalytics(userId, '', '', 4);
+                renderSocialSuggestions();
+                await loadIncomingFollowRequests();
+                await loadOutgoingFollowRequests();
+                await searchUsersToFollow();
+                alert('Follow request sent.');
+            } catch (error) {
+                alert(error?.message || String(error));
+            }
+        }
+
+        function formatRelationshipStatus(status) {
+            const value = String(status || 'none').toLowerCase();
+            if (value === 'following') return 'Following';
+            if (value === 'pending_sent') return 'Request sent';
+            if (value === 'pending_received') return 'Requested you';
+            return 'Not following';
+        }
+
+        function userSearchActionButtons(user) {
+            const status = String(user.relationship_status || 'none').toLowerCase();
+            if (status === 'following') {
+                return `<button class="secondary" onclick="unfollowUser('${user.id}', '${(user.name || user.email || 'this user').replace(/'/g, "\\'")}')">Unfollow</button>`;
+            }
+            if (status === 'pending_sent') {
+                return `<button class="secondary" onclick="cancelSentFollowRequest('${user.id}', '${(user.name || user.email || 'this user').replace(/'/g, "\\'")}')">Cancel Request</button>`;
+            }
+            if (status === 'pending_received') {
+                return '<span class="muted">Awaiting your response in Incoming.</span>';
+            }
+            return `<button class="secondary" onclick="requestFollow('${user.id}')">Request Follow</button>`;
+        }
+
+        async function cancelSentFollowRequest(targetUserId, targetLabel) {
+            const ok = window.confirm(`Cancel follow request to ${targetLabel || 'this user'}?`);
+            if (!ok) return;
+            try {
+                const response = await apiFetch(`/social/follows/requests/${targetUserId}`, {
+                    method: 'DELETE',
+                    headers: { Authorization: `Bearer ${authToken}` }
+                });
+                const payload = await readApiPayload(response);
+                if (!response.ok) throw new Error(apiErrorMessage(response, payload, 'Failed to cancel follow request'));
+                await loadOutgoingFollowRequests();
+                await searchUsersToFollow();
+            } catch (error) {
+                alert(error?.message || String(error));
+            }
+        }
+
+        async function unfollowUser(targetUserId, targetLabel) {
+            const ok = window.confirm(`Unfollow ${targetLabel || 'this user'}?`);
+            if (!ok) return;
+            try {
+                const response = await apiFetch(`/social/follows/${targetUserId}`, {
+                    method: 'DELETE',
+                    headers: { Authorization: `Bearer ${authToken}` }
+                });
+                const payload = await readApiPayload(response);
+                if (!response.ok) throw new Error(apiErrorMessage(response, payload, 'Failed to unfollow user'));
+                await loadOutgoingFollowRequests();
+                await loadIncomingFollowRequests();
+                await searchUsersToFollow();
+            } catch (error) {
+                alert(error?.message || String(error));
+            }
+        }
+
+        async function loadOutgoingFollowRequests() {
+            const target = document.getElementById('outgoingFollowRequests');
+            try {
+                const response = await apiFetch('/social/follows/requests/outgoing', {
+                    headers: { Authorization: `Bearer ${authToken}` }
+                });
+                const payload = await readApiPayload(response);
+                if (!response.ok) throw new Error(apiErrorMessage(response, payload, 'Failed to load sent requests'));
+                const requests = Array.isArray(payload.json) ? payload.json : [];
+
+                if (!requests.length) {
+                    target.innerHTML = '<div class="muted">No sent follow requests pending.</div>';
+                    return;
+                }
+
+                target.innerHTML = requests.map(item => `
+                    <div class="social-item">
+                        <div><strong>${item.target.name || item.target.email}</strong></div>
+                        <div class="muted">${item.target.email}</div>
+                        <div class="muted">Status: ${item.status}</div>
+                        <div class="route-tools">
+                            <button class="secondary" onclick="cancelSentFollowRequest('${item.target.id}', '${((item.target.name || item.target.email || 'this user')).replace(/'/g, "\\'")}')">Cancel Request</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                target.innerHTML = `<div class="error">${error?.message || error}</div>`;
+            }
+        }
+
+        async function loadIncomingFollowRequests() {
+            const target = document.getElementById('incomingFollowRequests');
+            try {
+                const response = await apiFetch('/social/follows/requests', {
+                    headers: { Authorization: `Bearer ${authToken}` }
+                });
+                const payload = await readApiPayload(response);
+                if (!response.ok) throw new Error(apiErrorMessage(response, payload, 'Failed to load requests'));
+                const requests = Array.isArray(payload.json) ? payload.json : [];
+
+                if (!requests.length) {
+                    target.innerHTML = '<div class="muted">No incoming requests.</div>';
+                    return;
+                }
+
+                target.innerHTML = requests.map(item => `
+                    <div class="social-item">
+                        <div><strong>${item.requester.name || item.requester.email}</strong></div>
+                        <div class="muted">${item.requester.email}</div>
+                        <div class="route-tools">
+                            <button onclick="resolveFollowRequest('${item.id}', 'accept')">Accept</button>
+                            <button class="secondary" onclick="resolveFollowRequest('${item.id}', 'reject')">Reject</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                target.innerHTML = `<div class="error">${error?.message || error}</div>`;
+            }
+        }
+
+        async function resolveFollowRequest(requestId, action) {
+            try {
+                const response = await apiFetch(`/social/follows/requests/${requestId}/${action}`, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${authToken}` }
+                });
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(text || 'Failed to update follow request');
+                }
+                await loadIncomingFollowRequests();
+            } catch (error) {
+                alert(error?.message || String(error));
+            }
+        }
+
+        async function collectRoute(routeId) {
+            try {
+                const response = await apiFetch(`/social/routes/${routeId}/collect`, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${authToken}` }
+                });
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(text || 'Failed to add route to collection');
+                }
+                await loadCollections();
+            } catch (error) {
+                alert(error?.message || String(error));
+            }
+        }
+
+        async function loadCollections() {
+            const target = document.getElementById('collectionList');
+            try {
+                const response = await apiFetch('/social/collections', {
+                    headers: { Authorization: `Bearer ${authToken}` }
+                });
+                const payload = await readApiPayload(response);
+                if (!response.ok) throw new Error(apiErrorMessage(response, payload, 'Failed to load collection'));
+                const routes = Array.isArray(payload.json) ? payload.json : [];
+
+                if (!routes.length) {
+                    target.innerHTML = '<div class="muted">No saved routes in your collection.</div>';
+                    return;
+                }
+
+                target.innerHTML = routes.map(item => `
+                    <div class="social-item">
+                        <div><strong>${item.name}</strong></div>
+                        <div class="muted">Original Author: ${item.original_author.name || item.original_author.email}</div>
+                        <div class="muted">Distance: ${(item.distance_m / 1000).toFixed(1)} km</div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                target.innerHTML = `<div class="error">${error?.message || error}</div>`;
+            }
+        }
+
+        function calculateAverageGrade(distanceM, elevationGainM) {
+            if (!distanceM || !elevationGainM || distanceM <= 0) return 'Unknown';
             return ((elevationGainM / distanceM) * 100).toFixed(2) + '%';
         }
 
-        async function startRide(routeId) {
-            const route = window.cachedRoutes?.find(r => r.id === routeId);
-            if (!route) {
-                alert('Route not found. Please refresh routes and try again.');
-                return;
-            }
-
-            selectedRoute = route;
-            const loaded = await loadRenderData(route.id);
-            if (!loaded) {
-                return;
-            }
-            const toggle = document.getElementById('demo-toggle');
-            if (!toggle.checked) {
-                toggle.checked = true;
-                toggleDemo();
-            } else {
-                startDemo();
-            }
+        function openRoute3D(routeId) {
+            if (!routeId) return;
+            localStorage.setItem('veloverse_selected_route_id', String(routeId));
+            window.location.href = '/route-3d.html';
         }
-
-        let demoInterval = null;
-        let demoPosition = 0;
-        let demoElapsedSeconds = 0;
-        let demoLastTickMs = 0;
-        const demoRoute = {
-            distance: 10000, // 10km in meters
-            profilePoints: generateFallbackProfile(10000, 180)
-        };
-
-        function toggleDemo() {
-            const isEnabled = document.getElementById('demo-toggle').checked;
-            const controls = document.getElementById('demo-controls');
-            if (isEnabled) {
-                controls.classList.remove('hidden');
-                startDemo();
-            } else {
-                controls.classList.add('hidden');
-                stopDemo();
-            }
-        }
-
-        function updatePower(value) {
-            document.getElementById('power-value').textContent = value;
-            document.getElementById('current-power').textContent = value;
-        }
-
-        function startDemo() {
-            stopDemo();
-            demoPosition = 0;
-            demoElapsedSeconds = 0;
-            demoLastTickMs = Date.now();
-            drawElevationProfile();
-            demoInterval = setInterval(updateDemo, 100); // Update every 100ms
-        }
-
-        function stopDemo() {
-            if (demoInterval) {
-                clearInterval(demoInterval);
-                demoInterval = null;
-            }
-        }
-
-        function updateDemo() {
-            const power = parseInt(document.getElementById('power-slider').value);
-            const nowMs = Date.now();
-            const realDt = Math.max(0.05, (nowMs - demoLastTickMs) / 1000);
-            demoLastTickMs = nowMs;
-            const timeMultiplier = parseFloat(document.getElementById('time-multiplier').value || '1');
-            const simDt = realDt * timeMultiplier;
-            demoElapsedSeconds += simDt;
-
-            const gradePercent = getGradePercent(demoPosition);
-            const speed = calculateSpeed(power, gradePercent); // km/h
-            demoPosition += (speed / 3.6) * simDt; // m/s * s
-
-            if (demoPosition >= demoRoute.distance) {
-                demoPosition = demoRoute.distance;
-                stopDemo();
-            }
-
-            updateHUD(demoPosition, speed, demoElapsedSeconds, gradePercent);
-            drawElevationProfile();
-        }
-
-        function calculateSpeed(power, gradePercent) {
-            // Solve P = v * (rolling + gravity + aero) using binary search.
-            const mass = 82.0; // rider + bike (kg)
-            const g = 9.81;
-            const crr = 0.005;
-            const rhoCdA = 0.32;
-            const drivetrainEfficiency = 0.97;
-            const usablePower = Math.max(0, power) * drivetrainEfficiency;
-            const slope = gradePercent / 100.0;
-
-            let lo = 0.0;
-            let hi = 30.0; // m/s upper bound
-            for (let i = 0; i < 35; i++) {
-                const v = (lo + hi) / 2;
-                const rollingForce = mass * g * crr;
-                const gravityForce = mass * g * slope;
-                const aeroForce = rhoCdA * v * v;
-                const totalForce = Math.max(0.0, rollingForce + gravityForce + aeroForce);
-                const estimatedPower = totalForce * v;
-                if (estimatedPower > usablePower) {
-                    hi = v;
-                } else {
-                    lo = v;
-                }
-            }
-
-            return Math.max(3.0, Math.min(80.0, lo * 3.6));
-        }
-
-        function updateHUD(distance, speed, timeElapsed, gradePercent) {
-            document.getElementById('distance').textContent = (distance / 1000).toFixed(1);
-            document.getElementById('speed').textContent = speed.toFixed(1);
-            document.getElementById('grade').textContent = gradePercent.toFixed(1);
-            const minutes = Math.floor(timeElapsed / 60);
-            const seconds = Math.floor(timeElapsed % 60);
-            document.getElementById('time').textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        }
-
-        function drawElevationProfile() {
-            const canvas = document.getElementById('elevation-canvas');
-            const ctx = canvas.getContext('2d');
-            const width = canvas.width;
-            const height = canvas.height;
-
-            // Clear canvas
-            ctx.clearRect(0, 0, width, height);
-
-            // Draw elevation profile
-            ctx.strokeStyle = '#007bff';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-
-            const points = demoRoute.profilePoints;
-            if (!points || points.length < 2) {
-                return;
-            }
-            const elevations = points.map(p => p.elevation_m);
-            const minElevation = Math.min(...elevations);
-            const maxElevation = Math.max(...elevations);
-            const elevationSpan = Math.max(1, maxElevation - minElevation);
-            for (let i = 0; i < points.length; i++) {
-                const x = (points[i].distance_m / demoRoute.distance) * width;
-                const normalized = (points[i].elevation_m - minElevation) / elevationSpan;
-                const y = height - normalized * (height - 20) - 10;
-                if (i === 0) {
-                    ctx.moveTo(x, y);
-                } else {
-                    ctx.lineTo(x, y);
-                }
-            }
-            ctx.stroke();
-
-            // Draw rider position
-            const riderX = (demoPosition / demoRoute.distance) * width;
-            const riderElevation = getElevationAtDistance(demoPosition);
-            const riderNormalized = (riderElevation - minElevation) / elevationSpan;
-            const riderY = height - riderNormalized * (height - 20) - 10;
-
-            ctx.fillStyle = '#ff0000';
-            ctx.beginPath();
-            ctx.arc(riderX, riderY, 5, 0, 2 * Math.PI);
-            ctx.fill();
-        }
-
-        function generateFallbackProfile(distanceMeters, elevationGainMeters) {
-            const pointCount = 32;
-            const baseElevation = 100;
-            const profile = [];
-            for (let i = 0; i < pointCount; i++) {
-                const ratio = i / (pointCount - 1);
-                const rolling = Math.sin(ratio * Math.PI * 3) * (elevationGainMeters * 0.15);
-                const climb = Math.sin(ratio * Math.PI) * elevationGainMeters;
-                profile.push({
-                    distance_m: ratio * distanceMeters,
-                    elevation_m: baseElevation + climb + rolling
-                });
-            }
-            return profile;
-        }
-
-        function getElevationAtDistance(distanceMeters) {
-            const points = demoRoute.profilePoints;
-            if (!points || points.length === 0) return 100;
-            if (distanceMeters <= 0) return points[0].elevation_m;
-            if (distanceMeters >= demoRoute.distance) return points[points.length - 1].elevation_m;
-
-            for (let i = 1; i < points.length; i++) {
-                if (distanceMeters <= points[i].distance_m) {
-                    const prev = points[i - 1];
-                    const next = points[i];
-                    const range = next.distance_m - prev.distance_m || 1;
-                    const t = (distanceMeters - prev.distance_m) / range;
-                    return prev.elevation_m + (next.elevation_m - prev.elevation_m) * t;
-                }
-            }
-
-            return points[points.length - 1].elevation_m;
-        }
-
-        function getGradePercent(distanceMeters) {
-            const lookAheadM = 12.0;
-            const currentElevation = getElevationAtDistance(distanceMeters);
-            const nextElevation = getElevationAtDistance(Math.min(demoRoute.distance, distanceMeters + lookAheadM));
-            return ((nextElevation - currentElevation) / lookAheadM) * 100.0;
-        }
-
-        async function loadRenderData(routeId) {
-            try {
-                const response = await fetch(`${API_BASE}/routes/${routeId}/render-data`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                const bodyText = await response.text();
-                let data = {};
-                try {
-                    data = bodyText ? JSON.parse(bodyText) : {};
-                } catch (_) {
-                    data = { error: bodyText || 'Unexpected response' };
-                }
-                if (!response.ok) {
-                    alert(data.error || 'Route render data not ready yet. Wait for processing to finish.');
-                    return false;
-                }
-
-                demoRoute.distance = data.distance_m || 10000;
-                demoRoute.profilePoints = (data.profile_points && data.profile_points.length > 1)
-                    ? data.profile_points
-                    : generateFallbackProfile(demoRoute.distance, data.elevation_gain_m || 180);
-                return true;
-            } catch (error) {
-                alert('Failed to load route render data from API.');
-                return false;
-            }
-        }
-        window.cachedRoutes = [];
 
         function logout() {
-            stopDemo();
-            localStorage.removeItem('veloworld_token');
+            localStorage.removeItem('veloverse_token');
+            localStorage.removeItem('veloverse_selected_route_id');
             authToken = null;
             location.reload();
         }

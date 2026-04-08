@@ -15,7 +15,7 @@ import numpy as np
 from pydantic import BaseModel
 from shapely.geometry import box
 
-from veloworld_pipeline import RouteData, PipelineResult, ProcessingStage
+from veloverse_pipeline import RouteData, PipelineResult, ProcessingStage
 
 
 class TerrainConfig(BaseModel):

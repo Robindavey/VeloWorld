@@ -16,7 +16,7 @@ from stages.terrain import (
     TerrainConfig, ElevationSource, CopernicusDEM, USGS3DEP,
     TerrainReconstructor, process_terrain_reconstruction
 )
-from veloworld_pipeline import RouteData, RoutePoint
+from veloverse_pipeline import RouteData, RoutePoint
 
 
 class TestTerrainConfig:

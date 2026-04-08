@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Menu-driven developer helper for VeloWorld
+# Menu-driven developer helper for VeloVerse
 # Place this at scripts/dev.sh and run: ./scripts/dev.sh
 
 set -euo pipefail
@@ -10,16 +10,16 @@ BACKEND_DIR="$ROOT_DIR/backend"
 PIPELINE_DIR="$ROOT_DIR/pipeline"
 
 # Default envs (can be overridden in the environment)
-DB_URL_DEFAULT="postgresql://veloworld:veloworld@postgres:5432/veloworld?sslmode=disable"
+DB_URL_DEFAULT="postgresql://veloverse:veloverse@postgres:5432/veloverse?sslmode=disable"
 REDIS_URL_DEFAULT="redis://redis:6379"
 S3_ENDPOINT_DEFAULT="http://minio:9000"
 S3_ACCESS_KEY_DEFAULT="minioadmin"
 S3_SECRET_KEY_DEFAULT="minioadmin"
-S3_BUCKET_DEFAULT="veloworld"
+S3_BUCKET_DEFAULT="veloverse"
 S3_BASE_PATH_DEFAULT="uploads"
 
-PID_FILE="/tmp/veloworld_frontend.pid"
-HTTPS_PID_FILE="/tmp/veloworld_frontend_https.pid"
+PID_FILE="/tmp/veloverse_frontend.pid"
+HTTPS_PID_FILE="/tmp/veloverse_frontend_https.pid"
 
 function have_cmd() {
   command -v "$1" >/dev/null 2>&1
@@ -57,7 +57,7 @@ function stop_all() {
 
 function start_backend() {
   echo "Building backend image..."
-  docker build -f "$INFRA_DIR/Dockerfile.backend" -t veloworld-api "$ROOT_DIR"
+  docker build -f "$INFRA_DIR/Dockerfile.backend" -t veloverse-api "$ROOT_DIR"
 
   echo "Starting backend container..."
   docker rm -f api-backend >/dev/null 2>&1 || true
@@ -81,7 +81,7 @@ function start_backend() {
     -e S3_BUCKET="$S3_BUCKET" \
     -e S3_BASE_PATH="$S3_BASE_PATH" \
     -e S3_USE_SSL="$S3_USE_SSL" \
-    veloworld-api
+    veloverse-api
 
   echo "API backend started (container: api-backend)."
 }
@@ -121,19 +121,19 @@ function start_pipeline() {
 function migrate_db() {
   echo "Applying SQL migrations via postgres container..."
   # Run all migrations in order
-  docker exec -i infra_postgres_1 psql -U veloworld -d veloworld < "$ROOT_DIR/backend/db/migrations/001_initial_schema.sql"
+  docker exec -i infra_postgres_1 psql -U veloverse -d veloverse < "$ROOT_DIR/backend/db/migrations/001_initial_schema.sql"
   if [[ -f "$ROOT_DIR/backend/db/migrations/002_add_user_profile.sql" ]]; then
-    docker exec -i infra_postgres_1 psql -U veloworld -d veloworld < "$ROOT_DIR/backend/db/migrations/002_add_user_profile.sql"
+    docker exec -i infra_postgres_1 psql -U veloverse -d veloverse < "$ROOT_DIR/backend/db/migrations/002_add_user_profile.sql"
   fi
   if [[ -f "$ROOT_DIR/backend/db/migrations/003_add_rider_metrics.sql" ]]; then
-    docker exec -i infra_postgres_1 psql -U veloworld -d veloworld < "$ROOT_DIR/backend/db/migrations/003_add_rider_metrics.sql"
+    docker exec -i infra_postgres_1 psql -U veloverse -d veloverse < "$ROOT_DIR/backend/db/migrations/003_add_rider_metrics.sql"
   fi
   echo "Migrations applied."
 }
 
 function rebuild_images() {
-  docker build -f "$INFRA_DIR/Dockerfile.backend" -t veloworld-api "$ROOT_DIR"
-  docker build -f "$INFRA_DIR/Dockerfile.pipeline" -t veloworld-pipeline "$ROOT_DIR" || true
+  docker build -f "$INFRA_DIR/Dockerfile.backend" -t veloverse-api "$ROOT_DIR"
+  docker build -f "$INFRA_DIR/Dockerfile.pipeline" -t veloverse-pipeline "$ROOT_DIR" || true
   echo "Images rebuilt."
 }
 
@@ -150,7 +150,7 @@ function view_logs() {
 
 function help_menu() {
   cat <<EOF
-VeloWorld dev helper - options:
+VeloVerse dev helper - options:
 1) Start full stack (docker-compose up -d)
 2) Stop full stack (docker-compose down -v)
 3) Start backend only (build image + run container)

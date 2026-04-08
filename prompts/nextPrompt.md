@@ -1,4 +1,4 @@
-# VeloWorld — Next Work Prompt
+# VeloVerse — Next Work Prompt
 
 ## Completed This Session
 

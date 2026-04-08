@@ -1,4 +1,6 @@
-.PHONY: dev test migrate clean build-backend build-pipeline prepare-env
+.PHONY: dev test migrate clean build-backend build-pipeline prepare-env benchmark benchmark-backend benchmark-pipeline
+
+PIPELINE_PYTHON := $(shell if [ -x $(CURDIR)/pipeline/.venv/bin/python ]; then echo $(CURDIR)/pipeline/.venv/bin/python; else echo python3; fi)
 
 # Start development environment
 dev:
@@ -12,17 +14,29 @@ prepare-env:
 # Run all tests
 test: test-backend test-pipeline
 
+# Run strict benchmark gates and benchmark reports
+benchmark: benchmark-backend benchmark-pipeline
+
 # Run backend tests
 test-backend:
 	cd backend && go test ./...
 
+# Run backend benchmark gates + benchmark report
+benchmark-backend:
+	cd backend && go test ./... -run "Budget" -bench "Benchmark" -benchmem
+
 # Run pipeline tests
 test-pipeline:
-	cd pipeline && python -m pytest tests/
+	cd pipeline && $(PIPELINE_PYTHON) -m pytest tests/
+
+# Run pipeline performance budget tests only
+benchmark-pipeline:
+	cd pipeline && $(PIPELINE_PYTHON) -m pytest tests/test_performance_budgets.py -q
 
 # Run database migrations
 migrate:
-	docker-compose -f infra/docker-compose.yml exec -T postgres psql -U veloworld -d veloworld -f /docker-entrypoint-initdb.d/001_initial_schema.sql
+	docker-compose -f infra/docker-compose.yml exec -T postgres psql -U veloverse -d veloverse -f /docker-entrypoint-initdb.d/001_initial_schema.sql
+	docker-compose -f infra/docker-compose.yml exec -T postgres psql -U veloverse -d veloverse -f /docker-entrypoint-initdb.d/002_social_features.sql
 
 # Clean up development environment
 clean:
@@ -31,11 +45,11 @@ clean:
 
 # Build backend Docker image
 build-backend:
-	docker build -f infra/Dockerfile.backend -t veloworld/backend .
+	docker build -f infra/Dockerfile.backend -t veloverse/backend .
 
 # Build pipeline Docker image
 build-pipeline:
-	docker build -f infra/Dockerfile.pipeline -t veloworld/pipeline .
+	docker build -f infra/Dockerfile.pipeline -t veloverse/pipeline .
 
 # View logs
 logs:

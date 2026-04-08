@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VeloWorld Route 3D</title>
+    <title>VeloVerse Route 3D</title>
     <style>
         body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); color: #f0f6fc; }
-        .topbar { background:#161b22; border-bottom:1px solid #30363d; padding:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-        .topbar a, .topbar select, .topbar button { color:#f0f6fc; background:#0d1117; border:1px solid #30363d; border-radius:5px; padding:6px 10px; text-decoration:none; }
-        .main { display:grid; grid-template-columns: 1fr; gap: 10px; padding:10px; height: calc(100vh - 56px); }
+        .topbar { background:#161b22; border-bottom:1px solid #30363d; padding:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; position: sticky; top: 0; z-index: 2000; }
+        .topbar a, .topbar select, .topbar button, .topbar input { color:#f0f6fc; background:#0d1117; border:1px solid #30363d; border-radius:5px; padding:6px 10px; text-decoration:none; }
+        .main { display:grid; grid-template-columns: 1fr; gap: 10px; padding:10px; height: calc(100vh - 64px); position: relative; }
         #scene { width: 100%; height: 100%; border: 1px solid #30363d; border-radius: 8px; background:#0d1117; }
         #trackCanvas { width: 100%; height: 100%; border: 1px solid #30363d; border-radius: 8px; background:#0d1117; }
         .panel { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:10px; overflow:auto; }
@@ -16,9 +16,32 @@
         .status { margin-top: 6px; color:#58a6ff; }
         .slider { width: 100%; }
 
+        #weatherRadarOverlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            background-image: repeating-linear-gradient(
+                105deg,
+                rgba(140, 190, 255, 0.0) 0px,
+                rgba(140, 190, 255, 0.08) 2px,
+                rgba(140, 190, 255, 0.0) 8px,
+                rgba(140, 190, 255, 0.0) 18px
+            );
+            background-size: 240px 240px;
+            animation: rainSweep 1.4s linear infinite;
+        }
+
+        @keyframes rainSweep {
+            from { background-position: 0 0; }
+            to { background-position: 0 240px; }
+        }
+
         #hudOverlay {
             position: absolute;
-            top: 14px;
+            top: 78px;
             left: 14px;
             min-width: 200px;
             background: rgba(13, 17, 23, 0.8);
@@ -32,7 +55,7 @@
 
         #elevationOverlay {
             position: absolute;
-            top: 14px;
+            top: 78px;
             right: 14px;
             width: 320px;
             height: 160px;
@@ -47,7 +70,7 @@
 
         #controlOverlay {
             position: absolute;
-            top: 190px;
+            top: 254px;
             left: 14px;
             background: rgba(13, 17, 23, 0.85);
             border: 1px solid #30363d;
@@ -55,6 +78,18 @@
             padding: 8px;
             z-index: 1001;
             width: 280px;
+        }
+
+        @media (max-width: 860px) {
+            #elevationOverlay {
+                width: min(320px, calc(100vw - 28px));
+                height: 144px;
+            }
+
+            #controlOverlay {
+                top: 236px;
+                width: min(280px, calc(100vw - 28px));
+            }
         }
     </style>
 </head>
@@ -73,6 +108,18 @@
         </select>
         <button id="connectDeviceBtn" onclick="connectPowerDevice()" disabled>Connect Device</button>
         <span id="deviceStatus" class="muted">Manual</span>
+        <label>Live Weather</label>
+        <input id="weatherLive" type="checkbox" checked onchange="onWeatherModeChange()" />
+        <label>Manual</label>
+        <select id="weatherCondition" onchange="onManualWeatherChange()" disabled>
+            <option value="clear">Clear</option>
+            <option value="rain">Rain</option>
+            <option value="heavy-rain">Heavy Rain</option>
+            <option value="windy">Windy</option>
+        </select>
+        <input id="weatherWind" type="number" min="0" max="80" value="12" onchange="onManualWeatherChange()" disabled style="width:84px;" />
+        <input id="weatherDir" type="range" min="0" max="359" value="90" oninput="onManualWeatherChange()" disabled style="width:110px;" />
+        <span id="weatherDirValue">90°</span>
         <button onclick="start3D()" id="startBtn">Start</button>
         <button onclick="pause3D()" id="pauseBtn" disabled>Pause</button>
         <button onclick="reset3D()">Reset</button>
@@ -84,7 +131,9 @@
     </div>
     <div id="hudOverlay">
         <h4>HUD</h4>
-        <div id="gradientLabel">Gradient: -</div>
+        <div id="gradientLabel">Std/True Gradient: - / -</div>
+        <div id="biomeLabel">Biome: -</div>
+        <div id="weatherLabel">Weather: -</div>
         <div id="distanceLabel">Distance: 0.0 km</div>
         <div id="speedLabel">Speed: 0.0 km/h</div>
         <div id="powerLabel">Power: 160 W</div>
@@ -97,18 +146,72 @@
     <div id="controlOverlay">
         <p class="label">Use this slider to jump along route:</p>
         <input id="progressSlider" class="slider" type="range" min="0" max="100" value="0" oninput="seekRoute(this.value)" />
-        <div style="margin-top:6px;"><span id="runState">Stopped</span></div>
+        <div style="margin-top:6px;"><span id="runStateDetail">Stopped</span></div>
     </div>
     <div class="main">
+        <div id="weatherRadarOverlay"></div>
         <div id="scene"></div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        const API_BASE = 'http://localhost:8080';
-        const token = localStorage.getItem('veloworld_token');
+        function resolveApiBase() {
+            const raw = (localStorage.getItem('veloverse_api_base') || '').trim();
+            if (!raw || raw === '/' || raw === '//' || raw === '/auth' || raw === '/routes') {
+                return '/api';
+            }
+            if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
+                return raw.replace(/\/+$/, '');
+            }
+            return '/api';
+        }
+
+        const API_BASE = resolveApiBase();
+        const API_HOST_FALLBACK = `http://${window.location.hostname}:8080`;
+        const API_LOCALHOST_FALLBACK = 'http://localhost:8080';
+        const token = localStorage.getItem('veloverse_token');
         if (!token) window.location.href = '/index.html';
+
+        function apiCandidates(path) {
+            const cleanPath = path.startsWith('/') ? path : `/${path}`;
+            const candidates = [`${API_BASE}${cleanPath}`];
+
+            const isHttpsPage = window.location.protocol === 'https:';
+            if (!isHttpsPage) {
+                candidates.push(`${API_HOST_FALLBACK}${cleanPath}`);
+            }
+
+            const isLocalBrowser = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            if (!isHttpsPage && isLocalBrowser) {
+                candidates.push(`${API_LOCALHOST_FALLBACK}${cleanPath}`);
+            }
+
+            return [...new Set(candidates)];
+        }
+
+        async function apiFetch(path, options = {}) {
+            const targets = apiCandidates(path);
+            let lastError = null;
+
+            for (let i = 0; i < targets.length; i++) {
+                const target = targets[i];
+                try {
+                    const resp = await fetch(target, options);
+                    const firstAttemptOnProxyPath = (i === 0 && API_BASE.startsWith('/'));
+                    if (firstAttemptOnProxyPath && (resp.status === 404 || resp.status === 501)) {
+                        continue;
+                    }
+                    if (resp.status === 501) {
+                        continue;
+                    }
+                    return resp;
+                } catch (err) {
+                    lastError = err;
+                }
+            }
+            throw (lastError || new Error('Network request failed'));
+        }
 
         const state = {
             route: null,
@@ -120,22 +223,37 @@
             scene: null,
             camera: null,
             renderer: null,
-            riderMesh: null,
+            riderGroup: null,
+            riderWheels: [],
+            riderSprite: null,
+            riderSpriteTextures: {},
             path: null,
             pathBorder: null,
             roadsideObjects: [],
+            landmarkObjects: [],
+            biomeFeatures: [],
+            biomeSamples: [],
+            dominantBiome: 'field',
+            biomeSource: 'heuristic',
+            currentBiome: 'field',
+            lastBiomeVisualUpdateAtMs: 0,
             lastPathRebuildM: 0,
             controls: null,
             lastFrame: 0,
             speedKmh: 0,
             routeOrigin: { lat: 0, lon: 0 },
             scale: 1,
-            gradientExaggeration: 2.5,
+            gradientExaggeration: 1.0,
             riderProfile: { weightKg: 75, ftpW: 210 },
             powerSource: "manual",
             livePowerW: 160,
             powerDevice: null,
-            powerCharacteristic: null
+            powerCharacteristic: null,
+            weatherAnchors: [],
+            weatherSource: 'manual',
+            weatherLiveEnabled: true,
+            manualWeather: { condition: 'clear', windSpeedKmh: 12, windDirDeg: 90 },
+            weatherArrow: null
         };
 
         function init() {
@@ -143,7 +261,7 @@
             state.scene = new THREE.Scene();
             state.scene.background = new THREE.Color(0x87CEEB); // Sky blue
             state.scene.fog = new THREE.Fog(0x87CEEB, 50, 300); // Fog for depth
-            state.camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            state.camera = new THREE.PerspectiveCamera(68, container.clientWidth / container.clientHeight, 0.1, 1000);
             state.renderer = new THREE.WebGLRenderer();
             state.renderer.setSize(container.clientWidth, container.clientHeight);
             container.appendChild(state.renderer.domElement);
@@ -155,27 +273,8 @@
             directionalLight.position.set(1, 1, 1);
             state.scene.add(directionalLight);
 
-            // Rider (simple cube) + sprite overlay
-            const geometry = new THREE.BoxGeometry(0.5, 1.8, 0.5);
-            const material = new THREE.MeshLambertMaterial({ color: 0xff0000 });
-            state.riderMesh = new THREE.Mesh(geometry, material);
-            state.scene.add(state.riderMesh);
-
-            const spriteCanvas = document.createElement('canvas');
-            spriteCanvas.width = 64;
-            spriteCanvas.height = 64;
-            const ctx = spriteCanvas.getContext('2d');
-            const gradient = ctx.createRadialGradient(32, 32, 5, 32, 32, 30);
-            gradient.addColorStop(0, 'rgba(255,255,255,1)');
-            gradient.addColorStop(0.3, 'rgba(255,200,100,0.9)');
-            gradient.addColorStop(1, 'rgba(255,20,20,0.0)');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, 64, 64);
-            const texture = new THREE.CanvasTexture(spriteCanvas);
-            const spriteMaterial = new THREE.SpriteMaterial({ map: texture, color: 0xffffff, transparent: true, opacity: 0.9 });
-            state.riderSprite = new THREE.Sprite(spriteMaterial);
-            state.riderSprite.scale.set(4, 4, 1);
-            state.scene.add(state.riderSprite);
+            createRiderSystem();
+            createWeatherIndicator();
 
             // Ground
             const groundGeometry = new THREE.PlaneGeometry(2000, 2000);
@@ -200,9 +299,131 @@
             animate();
         }
 
+        function makeRiderTexture(mode) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 96;
+            canvas.height = 96;
+            const ctx = canvas.getContext('2d');
+
+            const aura = ctx.createRadialGradient(48, 50, 4, 48, 50, 36);
+            aura.addColorStop(0, 'rgba(255,255,255,0.9)');
+            aura.addColorStop(0.5, 'rgba(255,190,80,0.55)');
+            aura.addColorStop(1, 'rgba(255,30,20,0.0)');
+            ctx.fillStyle = aura;
+            ctx.fillRect(0, 0, 96, 96);
+
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = '#0d1117';
+            ctx.lineWidth = 7;
+
+            let torsoLean = -8;
+            let headY = 34;
+            if (mode === 'climb') {
+                torsoLean = -14;
+                headY = 30;
+            } else if (mode === 'sprint') {
+                torsoLean = -19;
+                headY = 28;
+            }
+
+            // Bike bar + body silhouette
+            ctx.beginPath();
+            ctx.moveTo(30, 61);
+            ctx.lineTo(48 + torsoLean, 45);
+            ctx.lineTo(64, 40);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(48 + torsoLean, headY, 7, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffd7a8';
+            ctx.fill();
+            ctx.strokeStyle = '#0d1117';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.needsUpdate = true;
+            return tex;
+        }
+
+        function createRiderSystem() {
+            state.riderGroup = new THREE.Group();
+
+            const frame = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.05, 0.05, 1.1, 10),
+                new THREE.MeshLambertMaterial({ color: 0x222222 })
+            );
+            frame.rotation.z = Math.PI / 2;
+            frame.position.y = 0.65;
+            state.riderGroup.add(frame);
+
+            const wheelMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
+            const frontWheel = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.05, 10, 18), wheelMat);
+            const rearWheel = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.05, 10, 18), wheelMat);
+            frontWheel.rotation.y = Math.PI / 2;
+            rearWheel.rotation.y = Math.PI / 2;
+            frontWheel.position.set(0.52, 0.34, 0);
+            rearWheel.position.set(-0.52, 0.34, 0);
+            state.riderGroup.add(frontWheel);
+            state.riderGroup.add(rearWheel);
+            state.riderWheels = [frontWheel, rearWheel];
+
+            const torso = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.12, 0.14, 0.56, 10),
+                new THREE.MeshLambertMaterial({ color: 0xff6347 })
+            );
+            torso.position.set(-0.02, 1.05, 0);
+            torso.rotation.z = -0.28;
+            state.riderGroup.add(torso);
+
+            const head = new THREE.Mesh(
+                new THREE.SphereGeometry(0.12, 12, 12),
+                new THREE.MeshLambertMaterial({ color: 0xf4c99a })
+            );
+            head.position.set(0.17, 1.28, 0);
+            state.riderGroup.add(head);
+
+            state.riderSpriteTextures = {
+                seated: makeRiderTexture('seated'),
+                climb: makeRiderTexture('climb'),
+                sprint: makeRiderTexture('sprint')
+            };
+
+            const spriteMaterial = new THREE.SpriteMaterial({
+                map: state.riderSpriteTextures.seated,
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.86,
+                depthTest: false
+            });
+            state.riderSprite = new THREE.Sprite(spriteMaterial);
+            state.riderSprite.scale.set(2.7, 2.7, 1);
+            state.riderSprite.position.set(0, 1.4, 0);
+            state.riderGroup.add(state.riderSprite);
+
+            state.scene.add(state.riderGroup);
+        }
+
+        function updateRiderAnimation(dt, gradePercent, powerW) {
+            const wheelRot = (state.speedKmh / 3.6) * dt / Math.max(0.05, 0.34);
+            for (const wheel of state.riderWheels) {
+                wheel.rotation.z -= wheelRot;
+            }
+
+            let mode = 'seated';
+            if (gradePercent > 5) mode = 'climb';
+            if (powerW > 280 && state.speedKmh > 22) mode = 'sprint';
+            const nextTex = state.riderSpriteTextures[mode] || state.riderSpriteTextures.seated;
+            if (state.riderSprite?.material?.map !== nextTex) {
+                state.riderSprite.material.map = nextTex;
+                state.riderSprite.material.needsUpdate = true;
+            }
+        }
+
         async function fetchProfile() {
             try {
-                const res = await fetch(`${API_BASE}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+                const res = await apiFetch('/auth/me', { headers: { Authorization: `Bearer ${token}` } });
                 const me = await res.json();
                 state.riderProfile.weightKg = me.rider_weight_kg || 75;
                 state.riderProfile.ftpW = me.ftp_w || 210;
@@ -217,12 +438,20 @@
 
         async function loadRoutes3D() {
             try {
-                const resp = await fetch(`${API_BASE}/routes`, { headers: { Authorization: `Bearer ${token}` } });
+                const resp = await apiFetch('/routes', { headers: { Authorization: `Bearer ${token}` } });
                 const data = await resp.json();
                 if (!resp.ok) { throw new Error(data.error || 'Failed to fetch routes'); }
                 const options = data.filter(r => r.processing_status === 'ready').map(r => `<option value="${r.id}">${r.name}</option>`).join('');
-                document.getElementById('routeSelect').innerHTML = options || '<option value="">No ready routes</option>';
-                if (data.length > 0) loadRoute3D();
+                const routeSelect = document.getElementById('routeSelect');
+                routeSelect.innerHTML = options || '<option value="">No ready routes</option>';
+
+                const preferredRouteId = localStorage.getItem('veloverse_selected_route_id');
+                if (preferredRouteId && routeSelect.querySelector(`option[value="${preferredRouteId}"]`)) {
+                    routeSelect.value = preferredRouteId;
+                    localStorage.removeItem('veloverse_selected_route_id');
+                }
+
+                if (routeSelect.value) loadRoute3D();
             } catch (err) {
                 alert('Route list error: ' + err.message);
             }
@@ -232,7 +461,7 @@
             const routeId = document.getElementById('routeSelect').value;
             if (!routeId) return;
             try {
-                const resp = await fetch(`${API_BASE}/routes/${routeId}/render-data`, { headers: { Authorization: `Bearer ${token}` } });
+                const resp = await apiFetch(`/routes/${routeId}/render-data`, { headers: { Authorization: `Bearer ${token}` } });
                 const data = await resp.json();
                 if (!resp.ok) { throw new Error(data.error || 'Failed to fetch route render data'); }
 
@@ -241,6 +470,9 @@
                 if (!state.profile || state.profile.length < 12) {
                     state.profile = densifyProfile(state.profile, state.distanceM, 520);
                 }
+                state.profile = smoothProfile(state.profile, 2);
+                await buildBiomeContext(state.profile);
+                await buildWeatherContext(state.profile);
                 state.positionM = 0;
                 state.route = data;
                 document.getElementById('routeName').textContent = data.name || 'unknown';
@@ -249,13 +481,20 @@
                 const endM = Math.min(state.distanceM, 2000);
                 createPath(startM, endM);
                 createRoadsideProps(state.profile);
+                createLandmarks(state.profile);
                 state.positionM = 0;
                 updateRider(0);
                 drawTrackCanvas();
                 updateStats();
                 document.getElementById('progressSlider').value = '0';
-                document.getElementById('runState').textContent = 'Loaded';
+                setRunState('Loaded');
             } catch (err) {
+                state.biomeFeatures = [];
+                state.biomeSamples = [];
+                state.dominantBiome = 'field';
+                state.biomeSource = 'heuristic';
+                state.weatherAnchors = [];
+                state.weatherSource = 'manual';
                 alert('Load route error: ' + err.message);
             }
         }
@@ -289,20 +528,543 @@
             return output;
         }
 
+        function smoothProfile(profile, windowSize = 2) {
+            if (!profile || profile.length < (windowSize * 2 + 3)) return profile;
+            const smoothed = profile.map((point, i) => {
+                if (i < windowSize || i >= profile.length - windowSize) {
+                    return { ...point };
+                }
+
+                let lat = 0;
+                let lon = 0;
+                let elev = 0;
+                let weightTotal = 0;
+                for (let j = -windowSize; j <= windowSize; j++) {
+                    const p = profile[i + j];
+                    const weight = (windowSize + 1) - Math.abs(j);
+                    lat += (p.lat || 0) * weight;
+                    lon += (p.lon || 0) * weight;
+                    elev += (p.elevation_m || 0) * weight;
+                    weightTotal += weight;
+                }
+
+                return {
+                    ...point,
+                    lat: lat / weightTotal,
+                    lon: lon / weightTotal,
+                    elevation_m: elev / weightTotal
+                };
+            });
+
+            for (let i = 1; i < smoothed.length; i++) {
+                const a = smoothed[i - 1];
+                const b = smoothed[i];
+                const dist = Math.max(1, (b.distance_m || 0) - (a.distance_m || 0));
+                b.grade = ((b.elevation_m || 0) - (a.elevation_m || 0)) / dist * 100;
+            }
+            if (smoothed.length > 1) {
+                smoothed[0].grade = smoothed[1].grade || 0;
+            }
+
+            return smoothed;
+        }
+
+        function smoothPathVectors(points, sampleFactor = 2.4) {
+            if (!points || points.length < 4) return points;
+            const curve = new THREE.CatmullRomCurve3(points, false, 'centripetal', 0.45);
+            const sampleCount = Math.max(points.length, Math.floor(points.length * sampleFactor));
+            return curve.getPoints(sampleCount);
+        }
+
+        function tangentAt(points, i) {
+            let tangent;
+            if (i < points.length - 1) {
+                tangent = points[i + 1].clone().sub(points[i]);
+            } else {
+                tangent = points[i].clone().sub(points[i - 1]);
+            }
+            if (tangent.lengthSq() < 1e-8) return new THREE.Vector3(1, 0, 0);
+            return tangent.normalize();
+        }
+
+        function geodesicMeters(lat1, lon1, lat2, lon2) {
+            const toRad = Math.PI / 180;
+            const dLat = (lat2 - lat1) * toRad;
+            const dLon = (lon2 - lon1) * toRad;
+            const a = Math.sin(dLat / 2) ** 2
+                + Math.cos(lat1 * toRad) * Math.cos(lat2 * toRad) * Math.sin(dLon / 2) ** 2;
+            return 2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(a)));
+        }
+
+        function getGradientMetrics(distanceM, lookAheadM = 12) {
+            const a = getPointAtDistance(distanceM);
+            const b = getPointAtDistance(Math.min(state.distanceM, distanceM + lookAheadM));
+            if (!a || !b) {
+                return { standardPct: 0, truePct: 0 };
+            }
+
+            const rise = (b.elevation_m || 0) - (a.elevation_m || 0);
+            const routeRun = Math.max(1, (b.distance_m || 0) - (a.distance_m || 0));
+            const groundRun = Math.max(1, geodesicMeters(a.lat || 0, a.lon || 0, b.lat || 0, b.lon || 0));
+
+            return {
+                standardPct: (rise / routeRun) * 100,
+                truePct: (rise / groundRun) * 100
+            };
+        }
+
+        function mapTagsToBiome(tags = {}) {
+            const natural = String(tags.natural || '').toLowerCase();
+            const landuse = String(tags.landuse || '').toLowerCase();
+            const water = String(tags.water || '').toLowerCase();
+            const waterway = String(tags.waterway || '').toLowerCase();
+            const place = String(tags.place || '').toLowerCase();
+
+            if (
+                natural === 'water' || water === 'lake' || water === 'reservoir' || water === 'river' ||
+                waterway === 'river' || waterway === 'canal' || waterway === 'stream' || natural === 'wetland'
+            ) {
+                return 'lake';
+            }
+
+            if (
+                natural === 'peak' || natural === 'ridge' || natural === 'cliff' || natural === 'scree' ||
+                natural === 'bare_rock'
+            ) {
+                return 'mountain';
+            }
+
+            if (
+                landuse === 'residential' || landuse === 'commercial' || landuse === 'industrial' ||
+                place === 'city' || place === 'town' || place === 'suburb' || place === 'neighbourhood'
+            ) {
+                return 'urban';
+            }
+
+            if (
+                landuse === 'farmland' || landuse === 'meadow' || landuse === 'grass' ||
+                landuse === 'orchard' || landuse === 'vineyard'
+            ) {
+                return 'field';
+            }
+
+            return null;
+        }
+
+        function heuristicBiomeForPoint(point) {
+            if (!point) return 'field';
+            const elev = point.elevation_m || 0;
+            const grade = Math.abs(point.grade || 0);
+            if (elev > 550 || grade > 7.5) return 'mountain';
+            if (elev < 25) return 'lake';
+            if (elev < 120 && grade < 2.2) return 'urban';
+            return 'field';
+        }
+
+        async function fetchBiomeFeatures(profile) {
+            if (!profile || profile.length < 2) return [];
+            let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+            for (const p of profile) {
+                if (typeof p.lat !== 'number' || typeof p.lon !== 'number') continue;
+                minLat = Math.min(minLat, p.lat);
+                maxLat = Math.max(maxLat, p.lat);
+                minLon = Math.min(minLon, p.lon);
+                maxLon = Math.max(maxLon, p.lon);
+            }
+            if (!isFinite(minLat) || !isFinite(minLon)) return [];
+
+            const pad = 0.01;
+            const south = minLat - pad;
+            const west = minLon - pad;
+            const north = maxLat + pad;
+            const east = maxLon + pad;
+
+            const query = `[out:json][timeout:20];(node["natural"](${south},${west},${north},${east});node["landuse"](${south},${west},${north},${east});node["waterway"](${south},${west},${north},${east});node["water"](${south},${west},${north},${east});node["place"](${south},${west},${north},${east});way["natural"](${south},${west},${north},${east});way["landuse"](${south},${west},${north},${east});way["waterway"](${south},${west},${north},${east});way["water"](${south},${west},${north},${east});way["place"](${south},${west},${north},${east}););out center tags;`;
+
+            const resp = await fetch('https://overpass-api.de/api/interpreter', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+                body: `data=${encodeURIComponent(query)}`
+            });
+            if (!resp.ok) throw new Error('Overpass request failed');
+
+            const data = await resp.json();
+            const elements = Array.isArray(data?.elements) ? data.elements : [];
+            const features = [];
+            for (const el of elements) {
+                const biome = mapTagsToBiome(el.tags || {});
+                if (!biome) continue;
+                const lat = typeof el.lat === 'number' ? el.lat : el.center?.lat;
+                const lon = typeof el.lon === 'number' ? el.lon : el.center?.lon;
+                if (typeof lat !== 'number' || typeof lon !== 'number') continue;
+                features.push({ lat, lon, biome });
+            }
+            return features;
+        }
+
+        function classifyBiomeAtPoint(point, features) {
+            const base = heuristicBiomeForPoint(point);
+            if (!features || features.length === 0) return base;
+
+            const scores = { urban: 0, mountain: 0, lake: 0, field: 0 };
+            for (const f of features) {
+                const d = geodesicMeters(point.lat || 0, point.lon || 0, f.lat, f.lon);
+                if (d > 1400) continue;
+                const weight = 1 / (1 + d / 120);
+                scores[f.biome] += weight;
+            }
+            scores[base] += 0.24;
+
+            let best = 'field';
+            let bestScore = -1;
+            for (const key of Object.keys(scores)) {
+                if (scores[key] > bestScore) {
+                    best = key;
+                    bestScore = scores[key];
+                }
+            }
+            return best;
+        }
+
+        function buildBiomeSamples(profile, features) {
+            const samples = [];
+            const counts = { urban: 0, mountain: 0, lake: 0, field: 0 };
+            const sampleStep = 450;
+            for (let d = 0; d <= state.distanceM; d += sampleStep) {
+                const p = getPointAtDistance(d);
+                if (!p) continue;
+                const biome = classifyBiomeAtPoint(p, features);
+                samples.push({ distance_m: d, biome });
+                counts[biome] += 1;
+            }
+
+            if (!samples.length && profile.length) {
+                const biome = heuristicBiomeForPoint(profile[0]);
+                return { samples: [{ distance_m: 0, biome }], dominant: biome };
+            }
+
+            let dominant = 'field';
+            let maxCount = -1;
+            for (const [k, v] of Object.entries(counts)) {
+                if (v > maxCount) {
+                    dominant = k;
+                    maxCount = v;
+                }
+            }
+            return { samples, dominant };
+        }
+
+        function getBiomeAtDistance(distanceM) {
+            const samples = state.biomeSamples || [];
+            if (!samples.length) return state.dominantBiome || 'field';
+
+            let nearest = samples[0];
+            let nearestDelta = Math.abs((samples[0].distance_m || 0) - distanceM);
+            for (let i = 1; i < samples.length; i++) {
+                const d = Math.abs((samples[i].distance_m || 0) - distanceM);
+                if (d < nearestDelta) {
+                    nearest = samples[i];
+                    nearestDelta = d;
+                }
+            }
+            return nearest.biome || state.dominantBiome || 'field';
+        }
+
+        function biomeColor(biome) {
+            if (biome === 'urban') return '#a9b4c1';
+            if (biome === 'mountain') return '#a98b6a';
+            if (biome === 'lake') return '#5aa9ff';
+            return '#7fcf6b';
+        }
+
+        function applyBiomeVisuals(biome) {
+            const now = performance.now();
+            if (state.currentBiome === biome && now - state.lastBiomeVisualUpdateAtMs < 600) return;
+            state.currentBiome = biome;
+            state.lastBiomeVisualUpdateAtMs = now;
+
+            const sceneColors = {
+                urban: { bg: 0xc7d0d9, fog: 0xc7d0d9 },
+                mountain: { bg: 0xb8c2cc, fog: 0xb8c2cc },
+                lake: { bg: 0x95d4ff, fog: 0x95d4ff },
+                field: { bg: 0xa4d8a5, fog: 0xa4d8a5 }
+            };
+            const cfg = sceneColors[biome] || sceneColors.field;
+            state.scene.background = new THREE.Color(cfg.bg);
+            state.scene.fog.color = new THREE.Color(cfg.fog);
+        }
+
+        async function buildBiomeContext(profile) {
+            state.biomeFeatures = [];
+            state.biomeSamples = [];
+            state.dominantBiome = 'field';
+            state.biomeSource = 'heuristic';
+
+            try {
+                state.biomeFeatures = await fetchBiomeFeatures(profile);
+                state.biomeSource = state.biomeFeatures.length ? 'overpass' : 'heuristic';
+            } catch (_) {
+                state.biomeFeatures = [];
+                state.biomeSource = 'heuristic';
+            }
+
+            const { samples, dominant } = buildBiomeSamples(profile, state.biomeFeatures);
+            state.biomeSamples = samples;
+            state.dominantBiome = dominant;
+            state.currentBiome = dominant;
+            applyBiomeVisuals(dominant);
+        }
+
+        function createWeatherIndicator() {
+            const group = new THREE.Group();
+            const shaft = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.03, 0.03, 2.4, 8),
+                new THREE.MeshLambertMaterial({ color: 0xf8fafc })
+            );
+            shaft.rotation.z = Math.PI / 2;
+            const head = new THREE.Mesh(
+                new THREE.ConeGeometry(0.18, 0.48, 8),
+                new THREE.MeshLambertMaterial({ color: 0x38bdf8 })
+            );
+            head.rotation.z = -Math.PI / 2;
+            head.position.x = 1.2;
+            group.add(shaft, head);
+            state.weatherArrow = group;
+            state.scene.add(group);
+        }
+
+        function weatherCodeLabel(code) {
+            if (code === undefined || code === null) return 'clear';
+            if ([0, 1].includes(code)) return 'clear';
+            if ([2, 3, 45, 48].includes(code)) return 'cloudy';
+            if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81].includes(code)) return 'rain';
+            if ([82, 95, 96, 99].includes(code)) return 'heavy-rain';
+            return 'windy';
+        }
+
+        function manualWeatherSnapshot() {
+            const c = state.manualWeather.condition;
+            const base = {
+                source: 'manual',
+                condition: c,
+                windSpeedKmh: state.manualWeather.windSpeedKmh,
+                windDirDeg: state.manualWeather.windDirDeg,
+                precipMm: 0,
+                precipProb: 0,
+                tempC: 16
+            };
+            if (c === 'rain') {
+                base.precipMm = 1.8;
+                base.precipProb = 65;
+            } else if (c === 'heavy-rain') {
+                base.precipMm = 4.4;
+                base.precipProb = 92;
+            } else if (c === 'windy') {
+                base.windSpeedKmh = Math.max(base.windSpeedKmh, 34);
+            }
+            return base;
+        }
+
+        function estimateArrivalSeconds(distanceM) {
+            const avgSpeedMps = Math.max(4.5, Math.min(10.5, (state.speedKmh > 1 ? state.speedKmh : 24) / 3.6));
+            return distanceM / avgSpeedMps;
+        }
+
+        async function fetchForecastForPoint(lat, lon) {
+            const url = new URL('https://api.open-meteo.com/v1/forecast');
+            url.searchParams.set('latitude', String(lat));
+            url.searchParams.set('longitude', String(lon));
+            url.searchParams.set('hourly', 'temperature_2m,precipitation_probability,precipitation,wind_speed_10m,wind_direction_10m,weather_code');
+            url.searchParams.set('forecast_days', '2');
+            url.searchParams.set('timezone', 'UTC');
+            const resp = await fetch(url.toString());
+            if (!resp.ok) throw new Error('Open-Meteo request failed');
+            const data = await resp.json();
+            const h = data?.hourly;
+            if (!h?.time?.length) throw new Error('Open-Meteo payload missing hourly data');
+
+            const rows = [];
+            for (let i = 0; i < h.time.length; i++) {
+                rows.push({
+                    epochSec: Math.floor(Date.parse(h.time[i]) / 1000),
+                    tempC: h.temperature_2m?.[i] ?? 15,
+                    precipProb: h.precipitation_probability?.[i] ?? 0,
+                    precipMm: h.precipitation?.[i] ?? 0,
+                    windSpeedKmh: h.wind_speed_10m?.[i] ?? 0,
+                    windDirDeg: h.wind_direction_10m?.[i] ?? 0,
+                    weatherCode: h.weather_code?.[i] ?? 0
+                });
+            }
+            return rows;
+        }
+
+        async function buildWeatherContext(profile) {
+            state.weatherAnchors = [];
+            state.weatherSource = 'manual';
+
+            if (!profile || profile.length < 2) return;
+
+            if (!state.weatherLiveEnabled) {
+                state.weatherSource = 'manual';
+                return;
+            }
+
+            try {
+                const anchorCount = 6;
+                const anchors = [];
+                for (let i = 0; i < anchorCount; i++) {
+                    const ratio = anchorCount === 1 ? 0 : i / (anchorCount - 1);
+                    const d = ratio * state.distanceM;
+                    const p = getPointAtDistance(d);
+                    if (!p) continue;
+                    anchors.push({ distance_m: d, lat: p.lat, lon: p.lon });
+                }
+
+                const results = await Promise.all(anchors.map(async (a) => {
+                    const hourly = await fetchForecastForPoint(a.lat, a.lon);
+                    return { ...a, hourly };
+                }));
+
+                state.weatherAnchors = results;
+                state.weatherSource = results.length ? 'open-meteo' : 'manual';
+            } catch (_) {
+                state.weatherAnchors = [];
+                state.weatherSource = 'manual';
+            }
+        }
+
+        function weatherAtDistance(distanceM) {
+            if (!state.weatherLiveEnabled || state.weatherSource !== 'open-meteo' || !state.weatherAnchors.length) {
+                return manualWeatherSnapshot();
+            }
+
+            let nearestAnchor = state.weatherAnchors[0];
+            let nearestDelta = Math.abs((nearestAnchor.distance_m || 0) - distanceM);
+            for (let i = 1; i < state.weatherAnchors.length; i++) {
+                const d = Math.abs((state.weatherAnchors[i].distance_m || 0) - distanceM);
+                if (d < nearestDelta) {
+                    nearestAnchor = state.weatherAnchors[i];
+                    nearestDelta = d;
+                }
+            }
+
+            const eta = estimateArrivalSeconds(distanceM);
+            const targetEpoch = Math.floor(Date.now() / 1000 + eta);
+            let nearestHourly = nearestAnchor.hourly?.[0] || null;
+            if (nearestHourly && nearestAnchor.hourly?.length) {
+                let bestDelta = Math.abs(nearestHourly.epochSec - targetEpoch);
+                for (let i = 1; i < nearestAnchor.hourly.length; i++) {
+                    const row = nearestAnchor.hourly[i];
+                    const d = Math.abs(row.epochSec - targetEpoch);
+                    if (d < bestDelta) {
+                        nearestHourly = row;
+                        bestDelta = d;
+                    }
+                }
+            }
+
+            if (!nearestHourly) return manualWeatherSnapshot();
+            return {
+                source: 'open-meteo',
+                condition: weatherCodeLabel(nearestHourly.weatherCode),
+                windSpeedKmh: nearestHourly.windSpeedKmh,
+                windDirDeg: nearestHourly.windDirDeg,
+                precipMm: nearestHourly.precipMm,
+                precipProb: nearestHourly.precipProb,
+                tempC: nearestHourly.tempC
+            };
+        }
+
+        function routeHeadingDeg(distanceM) {
+            const a = getPointAtDistance(distanceM);
+            const b = getPointAtDistance(Math.min(state.distanceM, distanceM + 20));
+            if (!a || !b) return 0;
+            const v = projectPoint(b).sub(projectPoint(a));
+            return (Math.atan2(v.x, v.z) * 180 / Math.PI + 360) % 360;
+        }
+
+        function weatherPowerAdjustment(powerW, weather, headingDeg) {
+            const rel = ((weather.windDirDeg - headingDeg + 540) % 360) - 180;
+            const headwind = Math.max(0, Math.cos(rel * Math.PI / 180) * weather.windSpeedKmh);
+            const windPenalty = headwind * 1.2;
+            const rainPenalty = (weather.precipMm || 0) * 11;
+            return Math.max(0, powerW - windPenalty - rainPenalty);
+        }
+
+        function updateWeatherVisuals(dt, weather) {
+            if (!state.weatherArrow || !state.riderGroup) return;
+            const riderPos = state.riderGroup.position;
+            state.weatherArrow.position.copy(riderPos).add(new THREE.Vector3(0, 3.2, 0));
+            const dirRad = (weather.windDirDeg || 0) * Math.PI / 180;
+            state.weatherArrow.rotation.y = -dirRad;
+            state.weatherArrow.position.y += Math.sin(performance.now() * 0.0035) * 0.04;
+
+            const rainOverlay = document.getElementById('weatherRadarOverlay');
+            if (rainOverlay) {
+                const rainStrength = Math.min(1, Math.max(0, (weather.precipMm || 0) / 4.5));
+                rainOverlay.style.opacity = `${rainStrength * 0.85}`;
+            }
+        }
+
+        function onWeatherModeChange() {
+            state.weatherLiveEnabled = !!document.getElementById('weatherLive').checked;
+            const manual = !state.weatherLiveEnabled;
+            document.getElementById('weatherCondition').disabled = !manual;
+            document.getElementById('weatherWind').disabled = !manual;
+            document.getElementById('weatherDir').disabled = !manual;
+
+            if (state.profile.length) {
+                buildWeatherContext(state.profile);
+            }
+            updateStats();
+        }
+
+        function onManualWeatherChange() {
+            const cond = document.getElementById('weatherCondition').value;
+            const wind = parseFloat(document.getElementById('weatherWind').value || '0');
+            const dir = parseFloat(document.getElementById('weatherDir').value || '0');
+            state.manualWeather.condition = cond;
+            state.manualWeather.windSpeedKmh = Math.max(0, wind);
+            state.manualWeather.windDirDeg = ((dir % 360) + 360) % 360;
+            document.getElementById('weatherDirValue').textContent = `${Math.round(state.manualWeather.windDirDeg)}°`;
+            updateStats();
+        }
+
+        function setRunState(value) {
+            const top = document.getElementById('runState');
+            const detail = document.getElementById('runStateDetail');
+            if (top) top.textContent = value;
+            if (detail) detail.textContent = value;
+        }
+
         function createPath(startM = 0, endM = state.distanceM) {
             if (state.path) state.scene.remove(state.path);
             if (state.pathBorder) state.scene.remove(state.pathBorder);
             if (!state.profile.length) return;
 
-            const pts = [];
-            const grades = [];
-            for (let d = startM; d <= endM; d += 2) {
+            const sampledPts = [];
+            for (let d = startM; d <= endM; d += 3) {
                 const p = getPointAtDistance(d);
                 if (!p) continue;
-                pts.push(projectPoint(p));
-                grades.push(p.grade ?? 0);
+                sampledPts.push(projectPoint(p));
             }
+            const pts = smoothPathVectors(sampledPts);
             if (pts.length < 2) return;
+
+            const grades = [];
+            for (let i = 0; i < pts.length; i++) {
+                const current = pts[i];
+                const next = i < pts.length - 1 ? pts[i + 1] : pts[i - 1];
+                if (!next) {
+                    grades.push(0);
+                    continue;
+                }
+                const dy = next.y - current.y;
+                const dx = next.x - current.x;
+                const dz = next.z - current.z;
+                const run = Math.max(1, Math.hypot(dx, dz));
+                grades.push((dy / run) * 100);
+            }
 
             // Generate realistic road strip instead of tube
             const roadWidth = 6;
@@ -313,12 +1075,7 @@
 
             for (let i = 0; i < pts.length; i++) {
                 const point = pts[i];
-                let tangent;
-                if (i < pts.length - 1) {
-                    tangent = pts[i + 1].clone().sub(point).normalize();
-                } else {
-                    tangent = point.clone().sub(pts[i - 1]).normalize();
-                }
+                const tangent = tangentAt(pts, i);
                 const left = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), tangent).normalize().multiplyScalar(roadWidth / 2);
 
                 const leftPt = point.clone().add(left);
@@ -370,9 +1127,7 @@
             const edgePts = [];
             for (let i = 0; i < pts.length; i++) {
                 const p = pts[i];
-                let tangent;
-                if (i < pts.length - 1) tangent = pts[i + 1].clone().sub(p).normalize();
-                else tangent = p.clone().sub(pts[i - 1]).normalize();
+                const tangent = tangentAt(pts, i);
                 const left = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), tangent).normalize().multiplyScalar(roadWidth / 2);
                 edgePts.push(p.clone().add(left));
             }
@@ -459,14 +1214,150 @@
             }
         }
 
+        function createLandmark(kind) {
+            const group = new THREE.Group();
+
+            if (kind === 'tower') {
+                const base = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.8, 1.2, 6, 8),
+                    new THREE.MeshLambertMaterial({ color: 0x7f8c8d })
+                );
+                base.position.y = 3;
+                group.add(base);
+
+                const top = new THREE.Mesh(
+                    new THREE.ConeGeometry(1.2, 1.8, 8),
+                    new THREE.MeshLambertMaterial({ color: 0x95a5a6 })
+                );
+                top.position.y = 6.7;
+                group.add(top);
+            } else if (kind === 'arch') {
+                const mat = new THREE.MeshLambertMaterial({ color: 0xa87445 });
+                const left = new THREE.Mesh(new THREE.BoxGeometry(0.7, 3.8, 0.7), mat);
+                const right = left.clone();
+                const cross = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.6, 0.7), mat);
+                left.position.set(-2.1, 1.9, 0);
+                right.position.set(2.1, 1.9, 0);
+                cross.position.set(0, 3.6, 0);
+                group.add(left, right, cross);
+            } else if (kind === 'wind') {
+                const mast = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.16, 0.22, 8.8, 8),
+                    new THREE.MeshLambertMaterial({ color: 0xe2e8f0 })
+                );
+                mast.position.y = 4.4;
+                group.add(mast);
+                const hub = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.32, 10, 10),
+                    new THREE.MeshLambertMaterial({ color: 0xf8fafc })
+                );
+                hub.position.y = 8.8;
+                group.add(hub);
+
+                const blades = new THREE.Group();
+                for (let i = 0; i < 3; i++) {
+                    const blade = new THREE.Mesh(
+                        new THREE.BoxGeometry(0.12, 2.7, 0.28),
+                        new THREE.MeshLambertMaterial({ color: 0xf8fafc })
+                    );
+                    blade.position.y = 1.3;
+                    blade.rotation.z = (i * Math.PI * 2) / 3;
+                    blades.add(blade);
+                }
+                blades.position.y = 8.8;
+                group.add(blades);
+                group.userData.spinBlades = blades;
+            } else {
+                const base = new THREE.Mesh(
+                    new THREE.BoxGeometry(3.2, 2.1, 2.8),
+                    new THREE.MeshLambertMaterial({ color: 0x8b6b47 })
+                );
+                base.position.y = 1.05;
+                group.add(base);
+                const roof = new THREE.Mesh(
+                    new THREE.ConeGeometry(2.5, 1.6, 4),
+                    new THREE.MeshLambertMaterial({ color: 0x5e3f2a })
+                );
+                roof.position.y = 2.45;
+                roof.rotation.y = Math.PI / 4;
+                group.add(roof);
+            }
+
+            return group;
+        }
+
+        function createLandmarks(pathPoints) {
+            if (state.landmarkObjects) {
+                state.landmarkObjects.forEach(obj => state.scene.remove(obj));
+            }
+            state.landmarkObjects = [];
+            if (!pathPoints || pathPoints.length < 20) return;
+
+            for (let i = 24; i < pathPoints.length - 24; i += 30) {
+                const sample = pathPoints[i];
+                const prev = pathPoints[i - 6];
+                const next = pathPoints[i + 6];
+                if (!sample || !prev || !next) continue;
+
+                const center = projectPoint(sample);
+                const prevP = projectPoint(prev);
+                const nextP = projectPoint(next);
+                const inVec = center.clone().sub(prevP).setY(0).normalize();
+                const outVec = nextP.clone().sub(center).setY(0).normalize();
+                const turnCross = inVec.x * outVec.z - inVec.z * outVec.x;
+                const turnMag = Math.min(1, Math.abs(turnCross));
+
+                const tangent = nextP.clone().sub(prevP).normalize();
+                const normal = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), tangent).normalize();
+                const turnSide = turnCross >= 0 ? 1 : -1;
+                const side = turnMag > 0.12 ? turnSide : (i % 2 === 0 ? 1 : -1);
+                const lateral = 10 + turnMag * 22 + (i % 5);
+                const lift = 0.6 + turnMag * 4 + ((i % 3) * 0.9);
+
+                const pos = center.clone().add(normal.multiplyScalar(side * lateral));
+                pos.y += lift;
+
+                const sampleBiome = getBiomeAtDistance(sample.distance_m || 0);
+                let landmarkKinds = ['tower', 'arch', 'wind', 'cabin'];
+                if (sampleBiome === 'mountain') landmarkKinds = ['tower', 'wind', 'arch', 'tower'];
+                else if (sampleBiome === 'lake') landmarkKinds = ['wind', 'cabin', 'arch', 'cabin'];
+                else if (sampleBiome === 'urban') landmarkKinds = ['tower', 'arch', 'tower', 'cabin'];
+                const kind = landmarkKinds[i % landmarkKinds.length];
+                const landmark = createLandmark(kind);
+                landmark.position.copy(pos);
+                landmark.lookAt(center.x, pos.y + (turnMag * 1.5), center.z);
+                landmark.rotation.y += side * turnMag * 0.35;
+                const s = 0.95 + turnMag * 0.9;
+                landmark.scale.set(s, s, s);
+
+                const tint = new THREE.Color(biomeColor(sampleBiome));
+                landmark.traverse(node => {
+                    if (node.isMesh && node.material?.color) {
+                        node.material.color.lerp(tint, 0.16);
+                    }
+                });
+
+                state.scene.add(landmark);
+                state.landmarkObjects.push(landmark);
+            }
+        }
+
+        function animateLandmarks(dt) {
+            for (const landmark of state.landmarkObjects || []) {
+                if (landmark?.userData?.spinBlades) {
+                    landmark.userData.spinBlades.rotation.z += dt * 1.7;
+                }
+            }
+        }
+
         function updateRider(positionM) {
             const point = getPointAtDistance(positionM);
-            if (!point || !state.riderMesh || !state.riderSprite) return;
+            if (!point || !state.riderGroup || !state.riderSprite) return;
             const projected = projectPoint(point);
-            state.riderMesh.position.copy(projected).add(new THREE.Vector3(0, 1, 0));
-            state.riderSprite.position.copy(projected).add(new THREE.Vector3(0, 1.2, 0));
+            state.riderGroup.position.copy(projected).add(new THREE.Vector3(0, 0.2, 0));
 
             const aheadPoint = getPointAtDistance(Math.min(state.distanceM, positionM + 5));
+            const aheadFarPoint = getPointAtDistance(Math.min(state.distanceM, positionM + 22));
             let direction;
             if (aheadPoint) {
                 const projectedAhead = projectPoint(aheadPoint);
@@ -475,18 +1366,36 @@
                 direction = new THREE.Vector3(0, 0, 1);
             }
 
-            const camRadius = 20;
-            const camHeight = 10;
-            const camTargetOffset = direction.clone().multiplyScalar(7);
-            const desiredCamPos = state.riderMesh.position.clone().add(direction.clone().multiplyScalar(-camRadius)).add(new THREE.Vector3(0, camHeight, 0));
+            const lookDirection = aheadFarPoint
+                ? projectPoint(aheadFarPoint).clone().sub(projected).normalize()
+                : direction;
 
-            // smooth camera movement
+            const yaw = Math.atan2(direction.x, direction.z);
+            state.riderGroup.rotation.y = yaw;
+
+            const turnSign = direction.x * lookDirection.z - direction.z * lookDirection.x;
+            const speedFactor = Math.min(1, state.speedKmh / 46);
+            const camRadius = 14 + speedFactor * 13;
+            const camHeight = 6.5 + speedFactor * 3.5 + Math.min(4, Math.abs(point.grade || 0) * 0.2);
+            const lookAhead = 7 + speedFactor * 14;
+            const camLateral = Math.max(-2.8, Math.min(2.8, turnSign * 7));
+            const lateral = new THREE.Vector3(direction.z, 0, -direction.x).normalize().multiplyScalar(camLateral);
+
+            const target = state.riderGroup.position.clone().add(lookDirection.clone().multiplyScalar(lookAhead));
+            const desiredCamPos = state.riderGroup.position.clone()
+                .add(direction.clone().multiplyScalar(-camRadius))
+                .add(new THREE.Vector3(0, camHeight, 0))
+                .add(lateral);
+
+            // Smooth camera follow for depth and motion readability.
             state.camera.position.lerp(desiredCamPos, 0.15);
-            state.camera.lookAt(state.riderMesh.position.clone().add(camTargetOffset));
+            state.camera.lookAt(target);
+            const fovTarget = 62 + speedFactor * 8;
+            state.camera.fov += (fovTarget - state.camera.fov) * 0.08;
+            state.camera.updateProjectionMatrix();
 
-            // Keep orbit controls centered but disabled damping update to preserve follow)
             if (state.controls) {
-                state.controls.target.copy(state.riderMesh.position);
+                state.controls.target.copy(target);
             }
         }
 
@@ -552,13 +1461,18 @@
 
         function updateStats() {
             const p = getPointAtDistance(state.positionM);
-            const grade = p?.grade?.toFixed(2) ?? 0;
+            const metrics = getGradientMetrics(state.positionM, 12);
             const power = getCurrentPower();
-            document.getElementById('gradientLabel').textContent = `Gradient: ${grade}%`;
+            const biome = getBiomeAtDistance(state.positionM);
+            const weather = weatherAtDistance(state.positionM);
+            document.getElementById('gradientLabel').textContent = `Std/True Gradient: ${metrics.standardPct.toFixed(2)}% / ${metrics.truePct.toFixed(2)}%`;
+            document.getElementById('biomeLabel').textContent = `Biome: ${biome} (${state.biomeSource})`;
+            document.getElementById('weatherLabel').textContent = `Weather: ${weather.condition}, ${weather.windSpeedKmh.toFixed(0)} km/h @ ${Math.round(weather.windDirDeg)}deg (${weather.source})`;
             document.getElementById('distanceLabel').textContent = `Distance: ${(state.positionM / 1000).toFixed(2)} km`;
             document.getElementById('speedLabel').textContent = `Speed: ${state.speedKmh.toFixed(1)} km/h`;
             document.getElementById('powerLabel').textContent = `Power: ${Math.round(power)} W`;
             document.getElementById('progressSlider').value = state.distanceM ? (state.positionM / state.distanceM * 100).toFixed(1) : 0;
+            applyBiomeVisuals(biome);
             drawTrackCanvas();
         }
 
@@ -567,16 +1481,22 @@
             const now = performance.now();
             const dt = (now - state.lastFrame) / 1000;
             state.lastFrame = now;
-            const point = getPointAtDistance(state.positionM);
-            const grade = point?.grade || 0;
+            const metrics = getGradientMetrics(state.positionM, 12);
+            const grade = metrics.standardPct;
             const power = getCurrentPower();
-            state.speedKmh = calculateSpeed(power, grade, state.riderProfile.weightKg);
+            const weather = weatherAtDistance(state.positionM);
+            const headingDeg = routeHeadingDeg(state.positionM);
+            const effectivePower = weatherPowerAdjustment(power, weather, headingDeg);
+            state.speedKmh = calculateSpeed(effectivePower, grade, state.riderProfile.weightKg);
             state.positionM += state.speedKmh / 3.6 * dt;
             if (state.positionM > state.distanceM) {
                 state.positionM = state.distanceM;
                 pause3D();
             }
             updateRider(state.positionM);
+            updateRiderAnimation(dt, grade, power);
+            animateLandmarks(dt);
+            updateWeatherVisuals(dt, weather);
             updateStats();
             // Update progress slider in real-time
             document.getElementById('progressSlider').value = state.distanceM ? (state.positionM / state.distanceM * 100).toFixed(1) : 0;
@@ -595,7 +1515,7 @@
             if (!state.profile.length) return;
             state.running = true;
             state.lastFrame = performance.now();
-            document.getElementById('runState').textContent = 'Running';
+            setRunState('Running');
             document.getElementById('startBtn').disabled = true;
             document.getElementById('pauseBtn').disabled = false;
             state.animationId = requestAnimationFrame(animate3D);
@@ -603,7 +1523,7 @@
 
         function pause3D() {
             state.running = false;
-            document.getElementById('runState').textContent = 'Paused';
+            setRunState('Paused');
             document.getElementById('startBtn').disabled = false;
             document.getElementById('pauseBtn').disabled = true;
             if (state.animationId) cancelAnimationFrame(state.animationId);
@@ -615,7 +1535,7 @@
             state.speedKmh = 0;
             updateRider(0);
             updateStats();
-            document.getElementById('runState').textContent = 'Stopped';
+            setRunState('Stopped');
         }
 
         function seekRoute(percent) {
@@ -739,6 +1659,8 @@
             await fetchProfile();
             init();
             onPowerSourceChange();
+            onManualWeatherChange();
+            onWeatherModeChange();
             // Show Bluetooth secure-context warning when necessary
             try {
                 const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';

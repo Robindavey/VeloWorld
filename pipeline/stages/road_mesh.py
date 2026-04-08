@@ -12,7 +12,7 @@ from uuid import UUID
 import numpy as np
 from pydantic import BaseModel
 
-from veloworld_pipeline import RouteData, PipelineResult, ProcessingStage
+from veloverse_pipeline import RouteData, PipelineResult, ProcessingStage
 
 
 class RoadMeshConfig(BaseModel):

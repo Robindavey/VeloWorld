@@ -11,7 +11,7 @@ function usage() {
   cat <<EOF
 Usage: $0 [options]
 
-Prepare local development environment for VeloWorld.
+Prepare local development environment for VeloVerse.
 
 Options:
   --install-pipeline-deps   Create pipeline virtualenv and install requirements
@@ -74,7 +74,7 @@ function detect_compose_cmd() {
   return 1
 }
 
-echo "Preparing VeloWorld environment..."
+echo "Preparing VeloVerse environment..."
 
 MISSING=0
 require_cmd git || MISSING=1

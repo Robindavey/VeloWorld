@@ -1,17 +1,17 @@
-# VeloWorld — Agentic Build Prompt
+# VeloVerse — Agentic Build Prompt
 
 ## Context
 
-You are an expert software engineer and technical architect. You are building **VeloWorld**, a next-generation indoor cycling simulator. VeloWorld converts real-world GPS route files into physics-accurate, procedurally-generated 3D cycling simulations. Users upload a GPX route, the platform reconstructs the terrain from LiDAR elevation data, generates a 3D environment, and delivers a rideable simulation with accurate gradient resistance communicated to a smart trainer in real time.
+You are an expert software engineer and technical architect. You are building **VeloVerse**, a next-generation indoor cycling simulator. VeloVerse converts real-world GPS route files into physics-accurate, procedurally-generated 3D cycling simulations. Users upload a GPX route, the platform reconstructs the terrain from LiDAR elevation data, generates a 3D environment, and delivers a rideable simulation with accurate gradient resistance communicated to a smart trainer in real time.
 
-The full product specification is in the `/veloworld/docs/` directory. Read all six documents before beginning any work:
+The full product specification is in the `/veloverse/docs/` directory. Read all six documents before beginning any work:
 
-- `veloworld_concept.md` — Product vision, modes, and user segments
-- `veloworld_architecture.md` — System architecture, components, and infrastructure
-- `veloworld_data_pipeline.md` — The route processing pipeline (GPX → rideable simulation)
-- `veloworld_physics_model_specifications.md` — The complete cycling physics model
-- `veloworld_mvp.md` — The MVP feature set, timeline, and success metrics
-- `veloworld_technical_deep_dive.md` — Detailed technical implementation, APIs, code patterns, schemas
+- `veloverse_concept.md` — Product vision, modes, and user segments
+- `veloverse_architecture.md` — System architecture, components, and infrastructure
+- `veloverse_data_pipeline.md` — The route processing pipeline (GPX → rideable simulation)
+- `veloverse_physics_model_specifications.md` — The complete cycling physics model
+- `veloverse_mvp.md` — The MVP feature set, timeline, and success metrics
+- `veloverse_technical_deep_dive.md` — Detailed technical implementation, APIs, code patterns, schemas
 
 Read these documents thoroughly before writing any code. The answers to most architecture questions are in these documents.
 
@@ -19,7 +19,7 @@ Read these documents thoroughly before writing any code. The answers to most arc
 
 ## Your Task
 
-Build the VeloWorld MVP as defined in `veloworld_mvp.md`. The MVP must be functional, tested, and deployable.
+Build the VeloVerse MVP as defined in `veloverse_mvp.md`. The MVP must be functional, tested, and deployable.
 
 Work through the deliverables in order. Complete each one fully before moving to the next. Do not skip steps or leave stubs — implement each component to production quality.
 
@@ -32,11 +32,11 @@ Set up the full project directory structure and development infrastructure.
 **Repository layout:**
 
 ```
-veloworld/
+veloverse/
 ├── docs/                    ← specification documents (already present)
 ├── client/                  ← Unreal Engine 5 project
 │   ├── Source/
-│   │   ├── VeloWorld/
+│   │   ├── VeloVerse/
 │   │   │   ├── Physics/     ← Physics engine C++ module
 │   │   │   ├── Trainer/     ← Smart trainer interface C++
 │   │   │   ├── Route/       ← Route player and spline management
@@ -110,7 +110,7 @@ GET    /routes/{id}/package    — Get the streaming package definition for a ro
 
 **Database:**
 - Write all migrations in `backend/db/migrations/` using numbered SQL files (001_create_users.sql, etc.)
-- Implement the schema from `veloworld_technical_deep_dive.md` Section 7 fully, including all tables and indexes
+- Implement the schema from `veloverse_technical_deep_dive.md` Section 7 fully, including all tables and indexes
 
 **Route upload and job queue:**
 - When `POST /routes` is called, save the GPX file to S3 and insert a job record
@@ -133,7 +133,7 @@ GET    /routes/{id}/package    — Get the streaming package definition for a ro
 
 Build the Python-based route processing pipeline. This is the core technical innovation of the product. Implement all six stages.
 
-Read `veloworld_data_pipeline.md` in full before starting. Every design decision for this pipeline is documented there.
+Read `veloverse_data_pipeline.md` in full before starting. Every design decision for this pipeline is documented there.
 
 **Stage 1 — Ingestion (`pipeline/stages/ingestion.py`):**
 - Parse GPX files using a custom XML parser (do not use a GPX library that abstracts away the raw data — implement your own)
@@ -206,12 +206,12 @@ Read `veloworld_data_pipeline.md` in full before starting. Every design decision
 
 Build the physics simulation engine as a C++ module. This module will be integrated into the Unreal Engine 5 client but must be buildable and testable as a standalone library.
 
-Read `veloworld_physics_model_specifications.md` in full before starting. All formulas, constants, and parameter tables are defined there.
+Read `veloverse_physics_model_specifications.md` in full before starting. All formulas, constants, and parameter tables are defined there.
 
 **Module structure:**
 
 ```
-client/Source/VeloWorld/Physics/
+client/Source/VeloVerse/Physics/
 ├── PhysicsEngine.h / .cpp        — Main simulation class
 ├── ForceModel.h / .cpp           — All force computation
 ├── RouteProfile.h / .cpp         — Route data access
@@ -262,7 +262,7 @@ client/Source/VeloWorld/Physics/
 
 Build the smart trainer interface layer. This must handle BLE FTMS and ANT+ FE-C communication.
 
-**BLE FTMS Driver (`client/Source/VeloWorld/Trainer/BLEFTMSDriver`):**
+**BLE FTMS Driver (`client/Source/VeloVerse/Trainer/BLEFTMSDriver`):**
 - Scan for nearby BLE devices advertising the FTMS service (UUID 0x1826)
 - Connect to the selected device
 - Subscribe to Indoor Bike Data characteristic (0x2AD2) notifications
@@ -270,7 +270,7 @@ Build the smart trainer interface layer. This must handle BLE FTMS and ANT+ FE-C
 - Send Set Indoor Bike Simulation Parameters command (opcode 0x11) to Fitness Machine Control Point (0x2AD9)
 - Handle BLE connection drops: attempt reconnect up to 5 times with 2s delay between attempts, emit `OnTrainerDisconnected` event after 5 failures
 
-**ANT+ FE-C Driver (`client/Source/VeloWorld/Trainer/ANTPlusFECDriver`):**
+**ANT+ FE-C Driver (`client/Source/VeloVerse/Trainer/ANTPlusFECDriver`):**
 - Open the ANT+ USB dongle (OpenANT library)
 - Search for FE-C device on ANT+ channel
 - Read Page 25 (Trainer Data) for power, cadence, accumulated power
@@ -295,11 +295,11 @@ Build the smart trainer interface layer. This must handle BLE FTMS and ANT+ FE-C
 Build the core Unreal Engine 5 client application covering: scene loading, route player, physics integration, and basic HUD.
 
 **Project setup:**
-- Create a new UE5 C++ project named `VeloWorld`
+- Create a new UE5 C++ project named `VeloVerse`
 - Configure the build system to include the Physics module (Deliverable 4) and Trainer module (Deliverable 5) as UE plugin modules
-- Set up the primary game mode: `AVeloWorldGameMode`
+- Set up the primary game mode: `AVeloVerseGameMode`
 
-**Route Player (`client/Source/VeloWorld/Route/RoutePlayer`):**
+**Route Player (`client/Source/VeloVerse/Route/RoutePlayer`):**
 - Load the route streaming package definition JSON
 - Manages the rider's progress along the route spline
 - Drives the main camera (configurable: first-person / third-person chase / side view)
@@ -318,7 +318,7 @@ Build the core Unreal Engine 5 client application covering: scene loading, route
 - Use Unreal's instanced static mesh component for all repeated assets (trees, signs) — critical for render performance
 - Apply appropriate materials to road sections based on surface type
 
-**HUD (`client/Source/VeloWorld/HUD/`):**
+**HUD (`client/Source/VeloVerse/HUD/`):**
 
 Implement the following HUD elements using Unreal's UMG widget system:
 

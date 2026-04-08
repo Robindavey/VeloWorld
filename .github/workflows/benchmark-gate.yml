@@ -1,0 +1,35 @@
+name: Benchmark Gate
+
+on:
+  pull_request:
+    branches: ["main"]
+  push:
+    branches: ["main"]
+
+jobs:
+  benchmark-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21.x"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Prepare pipeline venv
+        run: |
+          python -m venv pipeline/.venv
+          pipeline/.venv/bin/python -m pip install -U pip
+          pipeline/.venv/bin/pip install pytest numpy pydantic fitparse pandas
+
+      - name: Run benchmark gate
+        run: make benchmark

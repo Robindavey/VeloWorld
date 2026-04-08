@@ -1,10 +1,10 @@
-# VeloWorld
+# VeloVerse
 
-VeloWorld is a next-generation indoor cycling simulator that converts real-world GPS route files into physics-accurate, procedurally-generated 3D cycling simulations. Users upload a GPX route, the platform reconstructs the terrain from LiDAR elevation data, generates a 3D environment, and delivers a rideable simulation with accurate gradient resistance communicated to a smart trainer in real time.
+VeloVerse is a next-generation indoor cycling simulator that converts real-world GPS route files into physics-accurate, procedurally-generated 3D cycling simulations. Users upload a GPX route, the platform reconstructs the terrain from LiDAR elevation data, generates a 3D environment, and delivers a rideable simulation with accurate gradient resistance communicated to a smart trainer in real time.
 
 ## Project Overview
 
-This repository contains the complete VeloWorld MVP implementation, including:
+This repository contains the complete VeloVerse MVP implementation, including:
 
 - **Backend API** (Go): User accounts, route management, ride history, and route processing job system
 - **Route Processing Pipeline** (Python): Converts GPX files into rideable 3D environments using LiDAR data and procedural generation
@@ -26,7 +26,7 @@ This repository contains the complete VeloWorld MVP implementation, including:
 1. **Clone the repository:**
    ```bash
    git clone <repository-url>
-   cd veloworld
+   cd veloverse
    ```
 
 2. **Start the development stack:**
@@ -67,7 +67,7 @@ Starts the stack in production configuration.
 
 ### Individual Services
 
-- **PostgreSQL:** `docker-compose exec postgres psql -U veloworld -d veloworld`
+- **PostgreSQL:** `docker-compose exec postgres psql -U veloverse -d veloverse`
 - **Redis:** `docker-compose exec redis redis-cli`
 - **API Backend:** `curl http://localhost:8080/health`
 - **Pipeline Worker:** Logs available via `docker-compose logs pipeline-worker`
@@ -79,6 +79,21 @@ Starts the stack in production configuration.
 make test
 ```
 Runs all unit tests for backend and pipeline components.
+
+### Strict Benchmark Gates
+```bash
+make benchmark
+```
+Runs hard performance-budget tests that fail on regressions and also prints benchmark metrics.
+
+You can run each side separately:
+
+```bash
+make benchmark-backend
+make benchmark-pipeline
+```
+
+Note: pipeline benchmark/test targets automatically use `pipeline/.venv/bin/python` when present.
 
 ### Backend Tests
 ```bash
@@ -148,4 +163,4 @@ Full API documentation available at `/docs` endpoint when running locally.
 
 ## License
 
-Copyright 2024 VeloWorld. All rights reserved.
+Copyright 2024 VeloVerse. All rights reserved.

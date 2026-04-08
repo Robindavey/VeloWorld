@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VeloWorld Map Tracer</title>
+    <title>VeloVerse Map Tracer</title>
     <link
         rel="stylesheet"
         href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -19,6 +19,36 @@
         #map { height: 100%; width: 100%; }
         .hud { position: absolute; right: 12px; top: 12px; z-index: 1200; background: rgba(13, 17, 23, 0.9); border: 1px solid #30363d; border-radius: 10px; padding: 10px 12px; min-width: 220px; }
         .hud-row { display: flex; justify-content: space-between; margin: 4px 0; }
+        .wind-overlay {
+            position: absolute;
+            left: 12px;
+            top: 12px;
+            z-index: 1200;
+            background: rgba(13, 17, 23, 0.9);
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 8px 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 190px;
+        }
+        .wind-arrow {
+            width: 24px;
+            height: 2px;
+            background: #7dd3fc;
+            position: relative;
+            transform-origin: 12px 1px;
+        }
+        .wind-arrow::after {
+            content: '';
+            position: absolute;
+            right: -4px;
+            top: -4px;
+            border-left: 8px solid #7dd3fc;
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+        }
         .power-zone { font-weight: bold; }
         .panel { width: 380px; border-left: 1px solid #30363d; background: #161b22; display: flex; flex-direction: column; transition: width 0.2s ease; }
         .panel.collapsed { width: 48px; }
@@ -62,10 +92,15 @@
     <div class="main">
         <div class="map-wrap">
             <div id="map"></div>
+            <div class="wind-overlay">
+                <div id="windArrow" class="wind-arrow"></div>
+                <div id="windLabel" class="muted">Wind -- km/h @ --deg</div>
+            </div>
             <div class="hud">
                 <div class="hud-row"><span>Distance</span><span id="hudDistance">0.0 km</span></div>
                 <div class="hud-row"><span>Speed</span><span id="hudSpeed">0.0 km/h</span></div>
-                <div class="hud-row"><span>Grade</span><span id="hudGrade">0.0%</span></div>
+                <div class="hud-row"><span>Std Grade</span><span id="hudStdGrade">0.0%</span></div>
+                <div class="hud-row"><span>True Grade</span><span id="hudTrueGrade">0.0%</span></div>
                 <div class="hud-row"><span>Power</span><span id="hudPower">160 W</span></div>
                 <div class="hud-row"><span>Zone</span><span id="hudZone" class="power-zone">Z2</span></div>
                 <div class="hud-row"><span>Time</span><span id="hudTime">00:00</span></div>
@@ -89,9 +124,62 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script>
-        const API_BASE = 'http://localhost:8080';
-        const token = localStorage.getItem('veloworld_token');
+        function resolveApiBase() {
+            const raw = (localStorage.getItem('veloverse_api_base') || '').trim();
+            if (!raw || raw === '/' || raw === '//' || raw === '/auth' || raw === '/routes') {
+                return '/api';
+            }
+            if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
+                return raw.replace(/\/+$/, '');
+            }
+            return '/api';
+        }
+
+        const API_BASE = resolveApiBase();
+        const API_HOST_FALLBACK = `http://${window.location.hostname}:8080`;
+        const API_LOCALHOST_FALLBACK = 'http://localhost:8080';
+        const token = localStorage.getItem('veloverse_token');
         if (!token) window.location.href = '/index.html';
+
+        function apiCandidates(path) {
+            const cleanPath = path.startsWith('/') ? path : `/${path}`;
+            const candidates = [`${API_BASE}${cleanPath}`];
+
+            const isHttpsPage = window.location.protocol === 'https:';
+            if (!isHttpsPage) {
+                candidates.push(`${API_HOST_FALLBACK}${cleanPath}`);
+            }
+
+            const isLocalBrowser = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            if (!isHttpsPage && isLocalBrowser) {
+                candidates.push(`${API_LOCALHOST_FALLBACK}${cleanPath}`);
+            }
+
+            return [...new Set(candidates)];
+        }
+
+        async function apiFetch(path, options = {}) {
+            const targets = apiCandidates(path);
+            let lastError = null;
+
+            for (let i = 0; i < targets.length; i++) {
+                const target = targets[i];
+                try {
+                    const resp = await fetch(target, options);
+                    const firstAttemptOnProxyPath = (i === 0 && API_BASE.startsWith('/'));
+                    if (firstAttemptOnProxyPath && (resp.status === 404 || resp.status === 501)) {
+                        continue;
+                    }
+                    if (resp.status === 501) {
+                        continue;
+                    }
+                    return resp;
+                } catch (err) {
+                    lastError = err;
+                }
+            }
+            throw (lastError || new Error('Network request failed'));
+        }
 
         const state = {
             routes: [],
@@ -108,7 +196,8 @@
             powerCharacteristic: null,
             marker: null,
             polyline: null,
-            map: null
+            map: null,
+            weather: { windSpeedKmh: 0, windDirDeg: 0, lastFetchMs: 0, source: 'open-meteo' }
         };
 
         function initMap() {
@@ -120,7 +209,7 @@
 
         async function fetchProfile() {
             try {
-                const res = await fetch(`${API_BASE}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+                const res = await apiFetch('/auth/me', { headers: { Authorization: `Bearer ${token}` } });
                 const me = await res.json();
                 state.rider.weightKg = me.rider_weight_kg || 75;
                 state.rider.ftpW = me.ftp_w || 210;
@@ -130,7 +219,7 @@
 
 
         async function fetchRoutes() {
-            const res = await fetch(`${API_BASE}/routes`, { headers: { Authorization: `Bearer ${token}` } });
+            const res = await apiFetch('/routes', { headers: { Authorization: `Bearer ${token}` } });
             state.routes = await res.json();
             const sel = document.getElementById('routeSelect');
             sel.innerHTML = state.routes
@@ -141,7 +230,7 @@
         async function loadSelectedRoute() {
             const routeId = document.getElementById('routeSelect').value;
             if (!routeId) return;
-            const res = await fetch(`${API_BASE}/routes/${routeId}/render-data`, { headers: { Authorization: `Bearer ${token}` } });
+            const res = await apiFetch(`/routes/${routeId}/render-data`, { headers: { Authorization: `Bearer ${token}` } });
             const data = await res.json();
             state.profile = data.profile_points || [];
             state.distanceM = data.distance_m || 0;
@@ -178,12 +267,13 @@
             state.lastTickMs = now;
             const dt = dtReal * parseFloat(document.getElementById('timeMultiplier').value || '1');
             const power = getCurrentPower();
-            const grade = getGradePercent(state.positionM);
-            const speedKmh = calculateSpeed(power, grade, state.rider.weightKg);
+            const gradients = getGradientMetrics(state.positionM);
+            const speedKmh = calculateSpeed(power, gradients.standardPct, state.rider.weightKg);
             state.positionM = Math.min(state.distanceM, state.positionM + (speedKmh / 3.6) * dt);
             state.elapsedS += dt;
             updateMarker(state.positionM);
-            updateHud(state.positionM, speedKmh, grade, power);
+            refreshWindFromWeather();
+            updateHud(state.positionM, speedKmh, gradients, power);
             drawElevation();
             document.getElementById('progressSlider').value = state.distanceM ? (state.positionM / state.distanceM * 100).toFixed(1) : 0;
             if (state.positionM >= state.distanceM) state.running = false;
@@ -228,11 +318,30 @@
             return state.profile[state.profile.length - 1];
         }
 
-        function getGradePercent(distanceM) {
+        function geodesicMeters(lat1, lon1, lat2, lon2) {
+            const toRad = Math.PI / 180;
+            const dLat = (lat2 - lat1) * toRad;
+            const dLon = (lon2 - lon1) * toRad;
+            const a = Math.sin(dLat / 2) ** 2
+                + Math.cos(lat1 * toRad) * Math.cos(lat2 * toRad) * Math.sin(dLon / 2) ** 2;
+            return 2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(a)));
+        }
+
+        function getGradientMetrics(distanceM, lookAheadM = 12) {
             const a = getPointAtDistance(distanceM);
-            const b = getPointAtDistance(Math.min(state.distanceM, distanceM + 12));
-            if (!a || !b) return 0;
-            return ((b.elevation_m - a.elevation_m) / 12) * 100;
+            const b = getPointAtDistance(Math.min(state.distanceM, distanceM + lookAheadM));
+            if (!a || !b) {
+                return { standardPct: 0, truePct: 0 };
+            }
+
+            const rise = (b.elevation_m || 0) - (a.elevation_m || 0);
+            const routeRun = Math.max(1, (b.distance_m || 0) - (a.distance_m || 0));
+            const groundRun = Math.max(1, geodesicMeters(a.lat || 0, a.lon || 0, b.lat || 0, b.lon || 0));
+
+            return {
+                standardPct: (rise / routeRun) * 100,
+                truePct: (rise / groundRun) * 100
+            };
         }
 
         function updateMarker(distanceM) {
@@ -252,17 +361,52 @@
             return ['Z5+ VO2', '#a371f7'];
         }
 
-        function updateHud(distanceM, speedKmh, gradePercent, power) {
+        function updateHud(distanceM, speedKmh, gradients, power) {
             const [zone, color] = zoneFromPower(power, state.rider.ftpW);
             document.getElementById('hudDistance').textContent = `${(distanceM / 1000).toFixed(2)} km`;
             document.getElementById('hudSpeed').textContent = `${speedKmh.toFixed(1)} km/h`;
-            document.getElementById('hudGrade').textContent = `${gradePercent.toFixed(1)}%`;
+            document.getElementById('hudStdGrade').textContent = `${gradients.standardPct.toFixed(1)}%`;
+            document.getElementById('hudTrueGrade').textContent = `${gradients.truePct.toFixed(1)}%`;
             document.getElementById('hudPower').textContent = `${Math.round(power)} W`;
             const zoneEl = document.getElementById('hudZone');
             zoneEl.textContent = zone;
             zoneEl.style.color = color;
             const m = Math.floor(state.elapsedS / 60), s = Math.floor(state.elapsedS % 60);
             document.getElementById('hudTime').textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            updateWindOverlay();
+        }
+
+        function updateWindOverlay() {
+            const arrow = document.getElementById('windArrow');
+            const label = document.getElementById('windLabel');
+            if (!arrow || !label) return;
+            arrow.style.transform = `rotate(${state.weather.windDirDeg}deg)`;
+            label.textContent = `Wind ${state.weather.windSpeedKmh.toFixed(0)} km/h @ ${Math.round(state.weather.windDirDeg)}deg`;
+        }
+
+        async function refreshWindFromWeather() {
+            const now = Date.now();
+            if (now - state.weather.lastFetchMs < 120000) return;
+
+            const p = getPointAtDistance(state.positionM) || state.profile[0];
+            if (!p || typeof p.lat !== 'number' || typeof p.lon !== 'number') return;
+
+            state.weather.lastFetchMs = now;
+            try {
+                const url = new URL('https://api.open-meteo.com/v1/forecast');
+                url.searchParams.set('latitude', String(p.lat));
+                url.searchParams.set('longitude', String(p.lon));
+                url.searchParams.set('current', 'wind_speed_10m,wind_direction_10m');
+                url.searchParams.set('timezone', 'UTC');
+                const resp = await fetch(url.toString());
+                if (!resp.ok) return;
+                const data = await resp.json();
+                const current = data?.current;
+                if (!current) return;
+                state.weather.windSpeedKmh = current.wind_speed_10m ?? state.weather.windSpeedKmh;
+                state.weather.windDirDeg = current.wind_direction_10m ?? state.weather.windDirDeg;
+                updateWindOverlay();
+            } catch (_) {}
         }
 
         function onPowerInput(value) {
@@ -362,9 +506,10 @@
 
         function refreshHudPreview() {
             const power = getCurrentPower();
-            const grade = getGradePercent(state.positionM);
-            const speedKmh = calculateSpeed(power, grade, state.rider.weightKg);
-            updateHud(state.positionM, speedKmh, grade, power);
+            const gradients = getGradientMetrics(state.positionM);
+            const speedKmh = calculateSpeed(power, gradients.standardPct, state.rider.weightKg);
+            updateHud(state.positionM, speedKmh, gradients, power);
+            refreshWindFromWeather();
         }
 
         function drawElevation() {
@@ -406,6 +551,7 @@
             if (document.getElementById('routeSelect').value) await loadSelectedRoute();
             onPowerSourceChange();
             refreshHudPreview();
+            updateWindOverlay();
             // Show Bluetooth secure-context warning when necessary
             try {
                 const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';

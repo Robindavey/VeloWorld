@@ -1,5 +1,5 @@
 """
-VeloWorld Pipeline Worker Runner
+VeloVerse Pipeline Worker Runner
 
 This module implements the Redis queue listener that processes route processing jobs.
 """
@@ -9,7 +9,7 @@ import json
 import logging
 import os
 import sys
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from uuid import UUID
 import time
 from urllib.parse import urlparse
@@ -22,7 +22,7 @@ import redis
 import psycopg
 import boto3
 from fitparse import FitFile
-from veloworld_pipeline import RouteProcessor, ProcessingStatus
+from veloverse_pipeline import RouteProcessor, ProcessingStatus
 
 # Configure logging
 logging.basicConfig(
@@ -30,6 +30,33 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+def build_database_url_candidates(primary: str) -> List[str]:
+    candidates: List[str] = [primary]
+    seen = {primary}
+
+    def add(candidate: str):
+        if not candidate or candidate in seen:
+            return
+        seen.add(candidate)
+        candidates.append(candidate)
+
+    if 'veloverse:veloverse' in primary or '/veloverse' in primary:
+        legacy = primary.replace('veloverse:veloverse', 'veloworld:veloworld')
+        legacy = legacy.replace('/veloverse?', '/veloworld?')
+        if legacy.endswith('/veloverse'):
+            legacy = f"{legacy[:-len('/veloverse')]}/veloworld"
+        add(legacy)
+
+    if 'veloworld:veloworld' in primary or '/veloworld' in primary:
+        modern = primary.replace('veloworld:veloworld', 'veloverse:veloverse')
+        modern = modern.replace('/veloworld?', '/veloverse?')
+        if modern.endswith('/veloworld'):
+            modern = f"{modern[:-len('/veloworld')]}/veloverse"
+        add(modern)
+
+    return candidates
 
 
 class PipelineWorker:
@@ -50,8 +77,10 @@ class PipelineWorker:
             decode_responses=True
         )
         self.queue_name = 'route_processing_queue'
-        self.database_url = os.getenv('DATABASE_URL', 'postgresql://veloworld:veloworld@localhost:5432/veloworld?sslmode=disable')
-        self.s3_bucket = os.getenv('S3_BUCKET', 'veloworld')
+        self.database_url = os.getenv('DATABASE_URL', 'postgresql://veloverse:veloverse@localhost:5432/veloverse?sslmode=disable')
+        self.database_url_candidates = build_database_url_candidates(self.database_url)
+        self.active_database_url: Optional[str] = None
+        self.s3_bucket = os.getenv('S3_BUCKET', 'veloverse')
         self.s3_client = boto3.client(
             "s3",
             endpoint_url=os.getenv('S3_ENDPOINT', 'http://localhost:9000'),
@@ -61,6 +90,29 @@ class PipelineWorker:
         )
         # Initialize the pipeline processor with empty config for now
         self.processor = RouteProcessor({})
+
+    def db_connect(self):
+        """Connect to Postgres, falling back between modern and legacy DSNs."""
+        candidates = []
+        if self.active_database_url:
+            candidates.append(self.active_database_url)
+        candidates.extend([c for c in self.database_url_candidates if c != self.active_database_url])
+
+        last_error: Optional[Exception] = None
+        for candidate in candidates:
+            try:
+                conn = psycopg.connect(candidate)
+                if self.active_database_url != candidate:
+                    if self.active_database_url is None and candidate != self.database_url:
+                        logger.warning("Primary DATABASE_URL failed, using fallback DSN")
+                    elif self.active_database_url is not None and self.active_database_url != candidate:
+                        logger.warning("Switching worker database DSN after connection failure")
+                    self.active_database_url = candidate
+                return conn
+            except Exception as exc:
+                last_error = exc
+
+        raise last_error if last_error else RuntimeError("Unable to connect to database")
 
     def connect_redis(self) -> bool:
         """Test Redis connection."""
@@ -150,7 +202,7 @@ class PipelineWorker:
     def update_route_status(self, route_id: str, status: str):
         """Persist route processing state for API clients."""
         try:
-            with psycopg.connect(self.database_url) as conn:
+            with self.db_connect() as conn:
                 with conn.cursor() as cur:
                     cur.execute(
                         "UPDATE routes SET processing_status = %s WHERE id = %s",
@@ -164,7 +216,7 @@ class PipelineWorker:
     def mark_route_ready(self, route_id: str, distance_m: float, elevation_gain_m: float):
         """Mark route as ready with baseline stats for demo rendering."""
         try:
-            with psycopg.connect(self.database_url) as conn:
+            with self.db_connect() as conn:
                 with conn.cursor() as cur:
                     cur.execute(
                         """

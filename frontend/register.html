@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VeloWorld - Register</title>
+    <title>VeloVerse - Register</title>
     <style>
         body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); color: #f0f6fc; min-height: 100vh; }
         .container { max-width: 900px; margin: 40px auto; padding: 30px; background: rgba(22, 27, 34, 0.95); border-radius: 15px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); border: 1px solid #30363d; }
@@ -19,7 +19,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🚴 VeloWorld - Register</h1>
+        <h1>🚴 VeloVerse - Register</h1>
         <p>Create an account to upload routes and start riding.</p>
 
         <div class="form-group">
@@ -44,7 +44,60 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:8080';
+        function resolveApiBase() {
+            const raw = (localStorage.getItem('veloverse_api_base') || '').trim();
+            if (!raw || raw === '/' || raw === '//' || raw === '/auth' || raw === '/routes') {
+                return '/api';
+            }
+            if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
+                return raw.replace(/\/+$/, '');
+            }
+            return '/api';
+        }
+
+        const API_BASE = resolveApiBase();
+        const API_HOST_FALLBACK = `http://${window.location.hostname}:8080`;
+        const API_LOCALHOST_FALLBACK = 'http://localhost:8080';
+
+        function apiCandidates(path) {
+            const cleanPath = path.startsWith('/') ? path : `/${path}`;
+            const candidates = [`${API_BASE}${cleanPath}`];
+
+            const isHttpsPage = window.location.protocol === 'https:';
+            if (!isHttpsPage) {
+                candidates.push(`${API_HOST_FALLBACK}${cleanPath}`);
+            }
+
+            const isLocalBrowser = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            if (!isHttpsPage && isLocalBrowser) {
+                candidates.push(`${API_LOCALHOST_FALLBACK}${cleanPath}`);
+            }
+
+            return [...new Set(candidates)];
+        }
+
+        async function apiFetch(path, options = {}) {
+            const targets = apiCandidates(path);
+            let lastError = null;
+
+            for (let i = 0; i < targets.length; i++) {
+                const target = targets[i];
+                try {
+                    const resp = await fetch(target, options);
+                    const firstAttemptOnProxyPath = (i === 0 && API_BASE.startsWith('/'));
+                    if (firstAttemptOnProxyPath && (resp.status === 404 || resp.status === 501)) {
+                        continue;
+                    }
+                    if (resp.status === 501) {
+                        continue;
+                    }
+                    return resp;
+                } catch (err) {
+                    lastError = err;
+                }
+            }
+            throw (lastError || new Error('Network request failed'));
+        }
 
         async function register() {
             const name = document.getElementById('name').value;
@@ -58,7 +111,7 @@
             }
 
             try {
-                const response = await fetch(`${API_BASE}/auth/register`, {
+                const response = await apiFetch('/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password, name, bio })

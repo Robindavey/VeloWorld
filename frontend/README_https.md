@@ -1,4 +1,4 @@
-Local/LAN HTTPS for VeloWorld frontend (Web Bluetooth)
+Local/LAN HTTPS for VeloVerse frontend (Web Bluetooth)
 
 Why
 ----

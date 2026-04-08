@@ -15,7 +15,7 @@ from typing import Dict, Any, List, Tuple
 from stages.road_mesh import (
     RoadMeshConfig, RoadGeometry, RoadMeshGenerator, process_road_mesh_generation
 )
-from veloworld_pipeline import RouteData, RoutePoint
+from veloverse_pipeline import RouteData, RoutePoint
 
 
 class TestRoadMeshConfig:

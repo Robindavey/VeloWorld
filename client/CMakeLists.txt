@@ -1,16 +1,16 @@
 cmake_minimum_required(VERSION 3.20)
-project(VeloWorldPhysics LANGUAGES CXX)
+project(VeloVersePhysics LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Platform-specific compile definitions
 if(WIN32)
-    add_compile_definitions(VELOWORLD_PLATFORM_WINDOWS)
+    add_compile_definitions(VELOVERSE_PLATFORM_WINDOWS)
 elseif(APPLE)
-    add_compile_definitions(VELOWORLD_PLATFORM_MACOS)
+    add_compile_definitions(VELOVERSE_PLATFORM_MACOS)
 elseif(UNIX AND NOT APPLE)
-    add_compile_definitions(VELOWORLD_PLATFORM_LINUX)
+    add_compile_definitions(VELOVERSE_PLATFORM_LINUX)
 endif()
 
 find_package(PkgConfig REQUIRED)
@@ -28,31 +28,31 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(nlohmann_json)
 
-add_library(veloworld_physics
-    Source/VeloWorld/Physics/ForceModel.cpp
-    Source/VeloWorld/Physics/RouteProfile.cpp
-    Source/VeloWorld/Physics/PhysicsEngine.cpp
-    Source/VeloWorld/Physics/SimulatedTrainer.cpp
-    Source/VeloWorld/Trainer/TrainerCalibration.cpp
-    Source/VeloWorld/Trainer/TrainerManager.cpp
-    Source/VeloWorld/Trainer/BLEFTMSDriver.cpp
-    Source/VeloWorld/Trainer/ANTPlusFECDriver.cpp
-    Source/VeloWorld/Trainer/CalibratedTrainer.cpp
-    Source/VeloWorld/Sensors/BLEHRMDriver.cpp
+add_library(veloverse_physics
+    Source/VeloVerse/Physics/ForceModel.cpp
+    Source/VeloVerse/Physics/RouteProfile.cpp
+    Source/VeloVerse/Physics/PhysicsEngine.cpp
+    Source/VeloVerse/Physics/SimulatedTrainer.cpp
+    Source/VeloVerse/Trainer/TrainerCalibration.cpp
+    Source/VeloVerse/Trainer/TrainerManager.cpp
+    Source/VeloVerse/Trainer/BLEFTMSDriver.cpp
+    Source/VeloVerse/Trainer/ANTPlusFECDriver.cpp
+    Source/VeloVerse/Trainer/CalibratedTrainer.cpp
+    Source/VeloVerse/Sensors/BLEHRMDriver.cpp
 )
 
-target_include_directories(veloworld_physics
+target_include_directories(veloverse_physics
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/Source
         ${nlohmann_json_SOURCE_DIR}/include
 )
 
-target_link_libraries(veloworld_physics
+target_link_libraries(veloverse_physics
     PUBLIC
 )
 
-add_executable(veloworld_app Source/main.cpp)
-target_link_libraries(veloworld_app veloworld_physics)
+add_executable(veloverse_app Source/main.cpp)
+target_link_libraries(veloverse_app veloverse_physics)
 
 if(BUILD_TESTING)
     FetchContent_Declare(
@@ -64,18 +64,18 @@ if(BUILD_TESTING)
 
     enable_testing()
 
-    add_executable(veloworld_physics_tests
-        Source/VeloWorld/Physics/PhysicsTests.cpp
+    add_executable(veloverse_physics_tests
+        Source/VeloVerse/Physics/PhysicsTests.cpp
     )
 
-    target_link_libraries(veloworld_physics_tests
+    target_link_libraries(veloverse_physics_tests
         PRIVATE
-            veloworld_physics
+            veloverse_physics
             GTest::gtest_main
     )
 
     include(GoogleTest)
-    gtest_discover_tests(veloworld_physics_tests)
+    gtest_discover_tests(veloverse_physics_tests)
 endif()
 
 

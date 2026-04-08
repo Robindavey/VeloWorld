@@ -15,7 +15,7 @@ import pytest
 from stages.map_matching import (
     MapMatcher, MapMatchingConfig, process_map_matching
 )
-from veloworld_pipeline import RouteData, RoutePoint
+from veloverse_pipeline import RouteData, RoutePoint
 
 
 class TestMapMatchingConfig:

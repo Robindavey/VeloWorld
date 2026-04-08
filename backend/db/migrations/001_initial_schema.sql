@@ -1,4 +1,4 @@
--- Initial database schema for VeloWorld MVP
+-- Initial database schema for VeloVerse MVP
 -- Migration: 001_initial_schema.sql
 
 -- Users table

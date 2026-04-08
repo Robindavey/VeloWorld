@@ -2,16 +2,16 @@ services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_DB: veloworld
-      POSTGRES_USER: veloworld
-      POSTGRES_PASSWORD: veloworld
+      POSTGRES_DB: veloverse
+      POSTGRES_USER: veloverse
+      POSTGRES_PASSWORD: veloverse
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ../backend/db/migrations:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U veloworld"]
+      test: ["CMD-SHELL", "pg_isready -U veloverse"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -34,7 +34,7 @@ services:
       context: ..
       dockerfile: infra/Dockerfile.pipeline
     environment:
-      - DATABASE_URL=postgresql://veloworld:veloworld@postgres:5432/veloworld?sslmode=disable&connect_timeout=10
+      - DATABASE_URL=postgresql://veloverse:veloverse@postgres:5432/veloverse?sslmode=disable&connect_timeout=10
       - REDIS_URL=redis://redis:6379
       - S3_ENDPOINT=http://minio:9000
       - S3_ACCESS_KEY=minioadmin
@@ -55,13 +55,13 @@ services:
       context: ..
       dockerfile: infra/Dockerfile.backend
     environment:
-      - DATABASE_URL=postgresql://veloworld:veloworld@postgres:5432/veloworld?sslmode=disable&connect_timeout=10
+      - DATABASE_URL=postgresql://veloverse:veloverse@postgres:5432/veloverse?sslmode=disable&connect_timeout=10
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=development-secret-key-change-in-production
       - S3_ENDPOINT=http://minio:9000
       - S3_ACCESS_KEY=minioadmin
       - S3_SECRET_KEY=minioadmin
-      - S3_BUCKET=veloworld
+      - S3_BUCKET=veloverse
       - S3_BASE_PATH=uploads
       - S3_USE_SSL=false
     ports:

@@ -1,4 +1,4 @@
-module github.com/veloworld/backend
+module github.com/veloverse/backend
 
 go 1.21
 

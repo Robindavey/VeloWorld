@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Social Dashboard | VeloVerse</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #09121f;
+            --panel: rgba(12, 24, 40, 0.88);
+            --text: #eaf2ff;
+            --muted: #98a8c2;
+            --accent: #1fbf79;
+            --accent-2: #228be6;
+            --border: rgba(159, 180, 214, 0.24);
+            --danger: #d64545;
+        }
+
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg: #f5faff;
+                --panel: rgba(255, 255, 255, 0.94);
+                --text: #18263a;
+                --muted: #586882;
+                --accent: #0e9d60;
+                --accent-2: #0f6cc8;
+                --border: rgba(57, 87, 126, 0.22);
+                --danger: #b42318;
+            }
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at 5% 12%, rgba(18, 133, 255, 0.14), transparent 38%),
+                radial-gradient(circle at 88% 0%, rgba(31, 191, 121, 0.16), transparent 32%),
+                linear-gradient(180deg, var(--bg), color-mix(in oklab, var(--bg), black 6%));
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .shell {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: grid;
+            gap: 16px;
+        }
+
+        .card {
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: var(--panel);
+            padding: 18px;
+            backdrop-filter: blur(6px);
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .btn, button {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 9px 13px;
+            cursor: pointer;
+            font-weight: 700;
+            text-decoration: none;
+            color: #f6fbff;
+            background: linear-gradient(135deg, var(--accent-2), #1558a3);
+        }
+
+        .btn.secondary, button.secondary {
+            color: var(--text);
+            background: transparent;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .stat {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px;
+            background: color-mix(in oklab, var(--panel), black 6%);
+        }
+
+        .stat .label {
+            color: var(--muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .stat .value {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-top: 2px;
+        }
+
+        .route-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .route-item {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px;
+            background: color-mix(in oklab, var(--panel), black 5%);
+        }
+
+        .route-item h3 {
+            margin: 0;
+            font-size: 1.05rem;
+        }
+
+        .muted { color: var(--muted); }
+        .error { color: var(--danger); }
+
+        .chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .chip {
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 6px 10px;
+            background: transparent;
+            color: var(--text);
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        @media (max-width: 860px) {
+            body { padding: 12px; }
+            .card { padding: 14px; }
+            .stats { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <main class="shell">
+        <section class="card topbar">
+            <div>
+                <h1 id="userTitle" style="margin:0;">Social User Dashboard</h1>
+                <p id="userSubtitle" class="muted" style="margin:4px 0 0;">Loading user profile...</p>
+            </div>
+            <div class="actions">
+                <a class="btn secondary" href="/index.html">Back To Dashboard</a>
+                <button id="followBtn" onclick="requestFollow()">Request Follow</button>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2 style="margin:0;">Public Routes</h2>
+            <div class="stats" id="statsRow">
+                <div class="stat">
+                    <div class="label">Public Routes</div>
+                    <div class="value" id="statRoutes">-</div>
+                </div>
+                <div class="stat">
+                    <div class="label">Total Distance</div>
+                    <div class="value" id="statDistance">-</div>
+                </div>
+                <div class="stat">
+                    <div class="label">Total Elevation</div>
+                    <div class="value" id="statElevation">-</div>
+                </div>
+            </div>
+            <div id="routeList" class="route-list" style="margin-top:12px;"></div>
+        </section>
+
+        <section class="card" id="incomingCard" style="display:none;">
+            <div style="display:flex; justify-content:space-between; gap:8px; align-items:center; flex-wrap:wrap;">
+                <h3 style="margin:0;">Incoming Follow Requests</h3>
+                <button class="btn secondary" onclick="loadIncomingRequestsForSelf()">Refresh</button>
+            </div>
+            <div id="incomingFollowList" class="route-list" style="margin-top:10px;"></div>
+        </section>
+
+        <section class="card" id="outgoingCard" style="display:none;">
+            <div style="display:flex; justify-content:space-between; gap:8px; align-items:center; flex-wrap:wrap;">
+                <h3 style="margin:0;">Sent Follow Requests</h3>
+                <button class="btn secondary" onclick="loadOutgoingRequestsForSelf()">Refresh</button>
+            </div>
+            <div id="outgoingFollowList" class="route-list" style="margin-top:10px;"></div>
+        </section>
+
+        <section class="card">
+            <h3 style="margin:0;">Suggested Users From Your Analytics</h3>
+            <div id="suggestionHost" class="chip-row"></div>
+        </section>
+    </main>
+
+    <script>
+        function resolveApiBase() {
+            const raw = (localStorage.getItem('veloverse_api_base') || '').trim();
+            if (!raw || raw === '/' || raw === '//' || raw === '/auth' || raw === '/routes') {
+                return '/api';
+            }
+            if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
+                return raw.replace(/\/+$/, '');
+            }
+            return '/api';
+        }
+
+        const API_BASE = resolveApiBase();
+        const API_HOST_FALLBACK = `http://${window.location.hostname}:8080`;
+        const API_LOCALHOST_FALLBACK = 'http://localhost:8080';
+        const authToken = localStorage.getItem('veloverse_token');
+        const SOCIAL_ANALYTICS_KEY = 'veloverse_social_analytics';
+
+        if (!authToken) {
+            window.location.href = '/index.html';
+        }
+
+        const params = new URLSearchParams(window.location.search);
+        const userId = params.get('user_id') || '';
+        const userLabel = decodeURIComponent(params.get('label') || 'User');
+        let currentUserId = '';
+
+        function apiCandidates(path) {
+            const cleanPath = path.startsWith('/') ? path : `/${path}`;
+            const candidates = [`${API_BASE}${cleanPath}`];
+
+            const isHttpsPage = window.location.protocol === 'https:';
+            if (!isHttpsPage) {
+                candidates.push(`${API_HOST_FALLBACK}${cleanPath}`);
+            }
+
+            const isLocalBrowser = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            if (!isHttpsPage && isLocalBrowser) {
+                candidates.push(`${API_LOCALHOST_FALLBACK}${cleanPath}`);
+            }
+
+            return [...new Set(candidates)];
+        }
+
+        async function apiFetch(path, options = {}) {
+            const targets = apiCandidates(path);
+            let lastError = null;
+
+            for (let i = 0; i < targets.length; i++) {
+                const target = targets[i];
+                try {
+                    const resp = await fetch(target, options);
+                    const firstAttemptOnProxyPath = (i === 0 && API_BASE.startsWith('/'));
+                    if (firstAttemptOnProxyPath && (resp.status === 404 || resp.status === 501)) {
+                        continue;
+                    }
+                    if (resp.status === 501) {
+                        continue;
+                    }
+                    return resp;
+                } catch (err) {
+                    lastError = err;
+                }
+            }
+            throw (lastError || new Error('Network request failed'));
+        }
+
+        async function readApiPayload(response) {
+            const text = await response.text();
+            let json = null;
+            if (text) {
+                try {
+                    json = JSON.parse(text);
+                } catch (_) {
+                    json = null;
+                }
+            }
+            return { text, json };
+        }
+
+        function apiErrorMessage(response, payload, fallback) {
+            if (response.status === 401) {
+                return 'Your session has expired. Please log in again.';
+            }
+            if (response.status === 403) {
+                return 'Follow request required before viewing this user\'s public routes.';
+            }
+            const fromJson = payload?.json?.error || payload?.json?.message;
+            const fromText = (payload?.text || '').trim();
+            return fromJson || fromText || fallback;
+        }
+
+        function getSocialAnalytics() {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(SOCIAL_ANALYTICS_KEY) || '{}');
+                if (!parsed || typeof parsed !== 'object') return { users: {} };
+                if (!parsed.users || typeof parsed.users !== 'object') parsed.users = {};
+                return parsed;
+            } catch (_) {
+                return { users: {} };
+            }
+        }
+
+        function saveSocialAnalytics(next) {
+            localStorage.setItem(SOCIAL_ANALYTICS_KEY, JSON.stringify(next || { users: {} }));
+        }
+
+        function scoreUserAnalytics(targetId, email, name, points) {
+            if (!targetId) return;
+            const analytics = getSocialAnalytics();
+            if (!analytics.users[targetId]) {
+                analytics.users[targetId] = { id: targetId, email: email || '', name: name || '', score: 0, touched_at: Date.now() };
+            }
+            const row = analytics.users[targetId];
+            row.email = email || row.email;
+            row.name = name || row.name;
+            row.score = Number(row.score || 0) + Number(points || 0);
+            row.touched_at = Date.now();
+            saveSocialAnalytics(analytics);
+        }
+
+        function openSuggestedUser(id, label) {
+            if (!id) return;
+            window.location.href = `/social-user.html?user_id=${encodeURIComponent(id)}&label=${encodeURIComponent(label || 'User')}`;
+        }
+
+        function renderSuggestions() {
+            const host = document.getElementById('suggestionHost');
+            const users = Object.values(getSocialAnalytics().users || {})
+                .filter(u => String(u.id) !== String(userId))
+                .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
+                .slice(0, 10);
+
+            if (!users.length) {
+                host.innerHTML = '<span class="muted">No suggestions yet. Search and visit more social dashboards.</span>';
+                return;
+            }
+
+            host.innerHTML = users.map(u => `
+                <button class="chip" onclick="openSuggestedUser('${u.id}', '${(u.name || u.email || 'User').replace(/'/g, "\\'")}')">
+                    ${u.name || u.email}
+                </button>
+            `).join('');
+        }
+
+        async function loadCurrentUser() {
+            try {
+                const response = await apiFetch('/auth/me', {
+                    headers: { Authorization: `Bearer ${authToken}` }
+                });
+                const payload = await readApiPayload(response);
+                if (!response.ok) {
+                    throw new Error(apiErrorMessage(response, payload, 'Unable to load current user'));
+                }
+                const me = payload.json || {};
+                currentUserId = String(me.id || '');
+            } catch (error) {
+                currentUserId = '';
+            }
+        }
+
+        async function resolveIncomingFollowRequest(requestId, action) {
+            try {
+                const response = await apiFetch(`/social/follows/requests/${requestId}/${action}`, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${authToken}` }
+                });
+                const payload = await readApiPayload(response);
+                if (!response.ok) {
+                    throw new Error(apiErrorMessage(response, payload, 'Failed to update follow request'));
+                }
+                await loadIncomingRequestsForSelf();
+            } catch (error) {
+                alert(error?.message || String(error));
+            }
+        }
+
+        async function loadIncomingRequestsForSelf() {
+            const host = document.getElementById('incomingFollowList');
+            host.innerHTML = '<div class="muted">Loading incoming follow requests...</div>';
+            try {
+                const response = await apiFetch('/social/follows/requests', {
+                    headers: { Authorization: `Bearer ${authToken}` }
+                });
+                const payload = await readApiPayload(response);
+                if (!response.ok) {
+                    throw new Error(apiErrorMessage(response, payload, 'Failed to load incoming requests'));
+                }
+
+                const requests = Array.isArray(payload.json) ? payload.json : [];
+                if (!requests.length) {
+                    host.innerHTML = '<div class="muted">No incoming follow requests.</div>';
+                    return;
+                }
+
+                host.innerHTML = requests.map(item => `
+                    <div class="route-item">
+                        <div><strong>${item.requester?.name || item.requester?.email || 'User'}</strong></div>
+                        <div class="muted">${item.requester?.email || ''}</div>
+                        <div class="actions" style="margin-top:8px;">
+                            <button onclick="resolveIncomingFollowRequest('${item.id}', 'accept')">Accept</button>
+                            <button class="secondary" onclick="resolveIncomingFollowRequest('${item.id}', 'reject')">Reject</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                host.innerHTML = `<div class="error">${error?.message || error}</div>`;
+            }
+        }
+
+        async function loadOutgoingRequestsForSelf() {
+            const host = document.getElementById('outgoingFollowList');
+            host.innerHTML = '<div class="muted">Loading sent follow requests...</div>';
+            try {
+                const response = await apiFetch('/social/follows/requests/outgoing', {
+                    headers: { Authorization: `Bearer ${authToken}` }
+                });
+                const payload = await readApiPayload(response);
+                if (!response.ok) {
+                    throw new Error(apiErrorMessage(response, payload, 'Failed to load sent requests'));
+                }
+
+                const requests = Array.isArray(payload.json) ? payload.json : [];
+                if (!requests.length) {
+                    host.innerHTML = '<div class="muted">No pending sent follow requests.</div>';
+                    return;
+                }
+
+                host.innerHTML = requests.map(item => `
+                    <div class="route-item">
+                        <div><strong>${item.target?.name || item.target?.email || 'User'}</strong></div>
+                        <div class="muted">${item.target?.email || ''}</div>
+                        <div class="muted">Status: ${item.status || 'pending'}</div>
+                        <div class="actions" style="margin-top:8px;">
+                            <button class="secondary" onclick="cancelSentFollowRequest('${item.target?.id || ''}', '${((item.target?.name || item.target?.email || 'this user')).replace(/'/g, "\\'")}')">Cancel Request</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                host.innerHTML = `<div class="error">${error?.message || error}</div>`;
+            }
+        }
+
+        async function cancelSentFollowRequest(targetUserId, targetLabel) {
+            if (!targetUserId) return;
+            const ok = window.confirm(`Cancel follow request to ${targetLabel || 'this user'}?`);
+            if (!ok) return;
+
+            try {
+                const response = await apiFetch(`/social/follows/requests/${targetUserId}`, {
+                    method: 'DELETE',
+                    headers: { Authorization: `Bearer ${authToken}` }
+                });
+                const payload = await readApiPayload(response);
+                if (!response.ok) {
+                    throw new Error(apiErrorMessage(response, payload, 'Failed to cancel follow request'));
+                }
+                await loadOutgoingRequestsForSelf();
+            } catch (error) {
+                alert(error?.message || String(error));
+            }
+        }
+
+        async function requestFollow() {
+            if (!userId) return;
+            try {
+                const response = await apiFetch('/social/follows/requests', {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ user_id: userId })
+                });
+
+                const payload = await readApiPayload(response);
+
+                if (!response.ok) {
+                    throw new Error(apiErrorMessage(response, payload, 'Failed to request follow'));
+                }
+
+                scoreUserAnalytics(userId, '', userLabel, 4);
+                renderSuggestions();
+                alert('Follow request sent.');
+            } catch (error) {
+                alert(error?.message || String(error));
+            }
+        }
+
+        async function collectRoute(routeId, authorEmail, authorName) {
+            try {
+                const response = await apiFetch(`/social/routes/${routeId}/collect`, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${authToken}` }
+                });
+                const payload = await readApiPayload(response);
+                if (!response.ok) {
+                    throw new Error(apiErrorMessage(response, payload, 'Failed to add route to collection'));
+                }
+                scoreUserAnalytics(userId, authorEmail || '', authorName || userLabel, 3);
+                renderSuggestions();
+                alert('Route added to your collection.');
+            } catch (error) {
+                alert(error?.message || String(error));
+            }
+        }
+
+        function routeStats(routes) {
+            const totalDistance = routes.reduce((acc, route) => acc + Number(route.distance_m || 0), 0);
+            const totalElevation = routes.reduce((acc, route) => acc + Number(route.elevation_gain_m || 0), 0);
+
+            document.getElementById('statRoutes').textContent = String(routes.length);
+            document.getElementById('statDistance').textContent = `${(totalDistance / 1000).toFixed(1)} km`;
+            document.getElementById('statElevation').textContent = `${Math.round(totalElevation)} m`;
+        }
+
+        function renderRoutes(routes) {
+            const host = document.getElementById('routeList');
+
+            if (!routes.length) {
+                host.innerHTML = '<div class="muted">No public routes available for this user.</div>';
+                routeStats([]);
+                return;
+            }
+
+            routeStats(routes);
+            host.innerHTML = routes.map(route => `
+                <div class="route-item">
+                    <h3>${route.name || 'Untitled Route'}</h3>
+                    <div class="muted">Author: ${route.author_name || route.author_email}</div>
+                    <div class="muted">Distance: ${(Number(route.distance_m || 0) / 1000).toFixed(1)} km</div>
+                    <div class="muted">Elevation: ${Math.round(Number(route.elevation_gain_m || 0))} m</div>
+                    <div class="actions" style="margin-top:8px;">
+                        <button onclick="collectRoute('${route.id}', '${(route.author_email || '').replace(/'/g, "\\'")}', '${(route.author_name || '').replace(/'/g, "\\'")}')">Add To Collection</button>
+                        <button class="secondary" onclick="openRoute3D('${route.id}')">Open In 3D</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openRoute3D(routeId) {
+            if (!routeId) return;
+            localStorage.setItem('veloverse_selected_route_id', String(routeId));
+            window.location.href = '/route-3d.html';
+        }
+
+        async function loadUserDashboard() {
+            const title = document.getElementById('userTitle');
+            const subtitle = document.getElementById('userSubtitle');
+            await loadCurrentUser();
+
+            title.textContent = `${userLabel} Dashboard`;
+            subtitle.textContent = 'Loading public routes and social stats...';
+
+            if (!userId) {
+                subtitle.className = 'error';
+                subtitle.textContent = 'Missing user id in URL.';
+                document.getElementById('followBtn').disabled = true;
+                return;
+            }
+
+            scoreUserAnalytics(userId, '', userLabel, 8);
+
+            if (currentUserId && String(currentUserId) === String(userId)) {
+                document.getElementById('followBtn').style.display = 'none';
+                document.getElementById('incomingCard').style.display = 'block';
+                document.getElementById('outgoingCard').style.display = 'block';
+                await loadIncomingRequestsForSelf();
+                await loadOutgoingRequestsForSelf();
+            }
+
+            try {
+                const response = await apiFetch(`/social/users/${userId}/routes/public`, {
+                    headers: { Authorization: `Bearer ${authToken}` }
+                });
+                const payload = await readApiPayload(response);
+                if (!response.ok) {
+                    throw new Error(apiErrorMessage(response, payload, 'Failed to load this user dashboard'));
+                }
+
+                const routes = Array.isArray(payload.json) ? payload.json : [];
+
+                if (routes.length > 0) {
+                    const first = routes[0];
+                    const finalName = first.author_name || userLabel;
+                    title.textContent = `${finalName} Dashboard`;
+                    subtitle.textContent = first.author_email || subtitle.textContent;
+                    scoreUserAnalytics(userId, first.author_email || '', first.author_name || userLabel, 2);
+                } else {
+                    subtitle.textContent = `${userLabel} has no public routes yet.`;
+                }
+
+                renderRoutes(routes);
+                renderSuggestions();
+            } catch (error) {
+                subtitle.className = 'error';
+                subtitle.textContent = error?.message || String(error);
+                document.getElementById('routeList').innerHTML = `<div class="error">${error?.message || error}</div>`;
+                routeStats([]);
+                renderSuggestions();
+            }
+        }
+
+        window.onload = loadUserDashboard;
+    </script>
+</body>
+</html>

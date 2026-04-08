@@ -17,7 +17,7 @@ from stages.ingestion import (
     RouteParser, GPXParser, FITParser, TCXParser,
     haversine_distance, calculate_total_distance, calculate_bounding_box
 )
-from veloworld_pipeline import RouteData, RoutePoint
+from veloverse_pipeline import RouteData, RoutePoint
 
 
 class TestRouteParser:
@@ -102,7 +102,7 @@ class TestRouteParser:
     def _create_valid_gpx() -> str:
         """Create a valid GPX file content for testing."""
         return '''<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="VeloWorld Test" xmlns="http://www.topografix.com/GPX/1/1">
+<gpx version="1.1" creator="VeloVerse Test" xmlns="http://www.topografix.com/GPX/1/1">
   <trk>
     <name>Test Route</name>
     <trkseg>

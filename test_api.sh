@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# VeloWorld API Test Script
-# This script tests the VeloWorld backend API endpoints
+# VeloVerse API Test Script
+# This script tests the VeloVerse backend API endpoints
 
 API_BASE="http://localhost:8080"
 TEST_EMAIL="test@example.com"
 TEST_PASSWORD="password123"
 
-echo "=== VeloWorld API Tests ==="
+echo "=== VeloVerse API Tests ==="
 echo "Testing API at: $API_BASE"
 echo
 
@@ -56,7 +56,7 @@ echo
 echo "6. Creating test GPX file..."
 cat > test_route.gpx << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="VeloWorld Test">
+<gpx version="1.1" creator="VeloVerse Test">
   <trk>
     <name>Test Route</name>
     <trkseg>

@@ -13,30 +13,24 @@ func TestRouteValidation(t *testing.T) {
 		{
 			name: "valid route",
 			route: Route{
-				Name:        "Test Route",
-				Description: "A test route",
-				Distance:    10000.0,
-				Duration:    1800,
+				Name:      "Test Route",
+				DistanceM: 10000.0,
 			},
 			valid: true,
 		},
 		{
 			name: "empty name",
 			route: Route{
-				Name:        "",
-				Description: "A test route",
-				Distance:    10000.0,
-				Duration:    1800,
+				Name:      "",
+				DistanceM: 10000.0,
 			},
 			valid: false,
 		},
 		{
 			name: "negative distance",
 			route: Route{
-				Name:        "Test Route",
-				Description: "A test route",
-				Distance:    -1000.0,
-				Duration:    1800,
+				Name:      "Test Route",
+				DistanceM: -1000.0,
 			},
 			valid: false,
 		},
@@ -49,7 +43,7 @@ func TestRouteValidation(t *testing.T) {
 				if tt.valid {
 					t.Error("Expected valid route, got invalid")
 				}
-			} else if tt.route.Distance < 0 {
+			} else if tt.route.DistanceM < 0 {
 				if tt.valid {
 					t.Error("Expected valid route, got invalid")
 				}

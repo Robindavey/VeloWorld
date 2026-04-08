@@ -1,6 +1,6 @@
-# VeloWorld Setup Guide
+# VeloVerse Setup Guide
 
-This guide provides individual commands to start each component of the VeloWorld application. Run them in order for a complete setup.
+This guide provides individual commands to start each component of the VeloVerse application. Run them in order for a complete setup.
 
 ## Prerequisites
 
@@ -13,7 +13,7 @@ This guide provides individual commands to start each component of the VeloWorld
 This starts PostgreSQL, Redis, MinIO, API backend, and pipeline worker.
 
 ```bash
-cd /home/robin/Desktop/Programs/VeloWorld
+cd /home/robin/Desktop/Programs/VeloVerse
 docker-compose -f infra/docker-compose.yml up -d --build
 ```
 
@@ -30,7 +30,7 @@ Expected output: All services (infra_api-backend_1, infra_postgres_1, etc.) shou
 This serves the demo page over HTTPS with API proxying.
 
 ```bash
-cd /home/robin/Desktop/Programs/VeloWorld/frontend
+cd /home/robin/Desktop/Programs/VeloVerse/frontend
 python3 serve_https.py --cert localhost.pem --key localhost-key.pem --port 8443 --dir .
 ```
 
@@ -55,7 +55,7 @@ Should return HTML content.
 Stop Docker stack:
 
 ```bash
-cd /home/robin/Desktop/Programs/VeloWorld
+cd /home/robin/Desktop/Programs/VeloVerse
 docker-compose -f infra/docker-compose.yml down -v
 ```
 
@@ -70,4 +70,4 @@ pkill -f serve_https.py
 - If certificates are missing, run the mkcert commands again.
 - If ports are in use, check with `ss -ltnp | grep :8443` and kill conflicting processes.
 - For mixed-content issues, ensure frontend is served over HTTPS.</content>
-<parameter name="filePath">/home/robin/Desktop/Programs/VeloWorld/docs/setup.md
+<parameter name="filePath">/home/robin/Desktop/Programs/VeloVerse/docs/setup.md

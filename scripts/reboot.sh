@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 INFRA_DIR="$ROOT_DIR/infra"
 FRONTEND_DIR="$ROOT_DIR/frontend"
-PID_FILE="/tmp/veloworld_frontend_https.pid"
+PID_FILE="/tmp/veloverse_frontend_https.pid"
 KEEP_DB=false
 
 function have_cmd() {
@@ -74,7 +74,7 @@ KEY="$FRONTEND_DIR/localhost-key.pem"
 if [[ -f "$CERT" && -f "$KEY" ]]; then
     echo "Starting frontend HTTPS server..."
     pushd "$FRONTEND_DIR" >/dev/null
-    nohup python3 serve_https.py --cert "$CERT" --key "$KEY" --port 8443 --dir . > /tmp/veloworld_frontend_https.log 2>&1 &
+    nohup python3 serve_https.py --cert "$CERT" --key "$KEY" --port 8443 --dir . > /tmp/veloverse_frontend_https.log 2>&1 &
     echo $! > "$PID_FILE"
     popd >/dev/null
     echo "Frontend server started (PID: $(cat "$PID_FILE"))"

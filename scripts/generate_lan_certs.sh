@@ -22,7 +22,7 @@ Output files:
 
 Examples:
   $0
-  $0 veloworld.local 192.168.200.10
+  $0 veloverse.local 192.168.200.10
 EOF
 }
 
