@@ -1,9 +1,13 @@
-.PHONY: dev test migrate clean build-backend build-pipeline
+.PHONY: dev test migrate clean build-backend build-pipeline prepare-env
 
 # Start development environment
 dev:
 	docker-compose -f infra/docker-compose.yml up -d
 	@echo "Development stack started. API available at http://localhost:8080"
+
+# Prepare local environment
+prepare-env:
+	chmod +x scripts/prepare_env.sh && ./scripts/prepare_env.sh
 
 # Run all tests
 test: test-backend test-pipeline

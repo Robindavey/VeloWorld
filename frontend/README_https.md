@@ -1,4 +1,4 @@
-Local HTTPS for VeloWorld frontend (Web Bluetooth)
+Local/LAN HTTPS for VeloWorld frontend (Web Bluetooth)
 
 Why
 ----
@@ -19,20 +19,27 @@ Quick steps (recommended)
    mkcert -install
    ```
 
-2. Generate a cert+key for localhost and 127.0.0.1:
+2. Generate certs for localhost and your LAN identity:
 
    ```bash
-   mkcert -cert-file localhost.pem -key-file localhost-key.pem localhost 127.0.0.1 ::1
+   ./scripts/generate_lan_certs.sh
    ```
 
-3. Serve the `frontend/` directory using the provided script:
+   This creates `frontend/lan.pem` and `frontend/lan-key.pem` including SAN entries for:
+   - localhost
+   - 127.0.0.1
+   - current hostname
+   - detected primary LAN IPv4
+
+3. Start the full stack and frontend server:
 
    ```bash
-   cd frontend
-   python3 serve_https.py --cert localhost.pem --key localhost-key.pem --port 8443 --dir .
+   ./scripts/manage.sh start
    ```
 
-4. Open https://localhost:8443/demo.html in Chrome/Edge and test Web Bluetooth connectivity.
+4. Open from any device on your local network:
+   - `https://<your-pi-lan-ip>:8443/demo.html` (when certs exist)
+   - `http://<your-pi-lan-ip>:3000/demo.html` (fallback if no certs)
 
 Alternative (quick test without mkcert)
 -------------------------------------
@@ -47,3 +54,4 @@ Notes
 - Using mkcert ensures the browser trusts the certificate and allows Web Bluetooth.
 - This repository includes `serve_https.py` which wraps Python's `http.server` with TLS.
 - If you prefer Node tools, `http-server` or `live-server` can also serve with TLS using mkcert-generated certs.
+- If another device cannot connect, allow ports 8443 and 3000 on the Pi firewall/router.

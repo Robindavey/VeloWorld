@@ -7,6 +7,29 @@ FRONTEND_DIR="$ROOT_DIR/frontend"
 PID_FILE="/tmp/veloworld_frontend_https.pid"
 KEEP_DB=false
 
+function have_cmd() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+function detect_compose_cmd() {
+  if have_cmd docker && docker compose version >/dev/null 2>&1; then
+    echo "docker compose"
+    return 0
+  fi
+
+  if have_cmd docker-compose; then
+    echo "docker-compose"
+    return 0
+  fi
+
+  return 1
+}
+
+if ! COMPOSE_CMD="$(detect_compose_cmd)"; then
+  echo "Missing Docker Compose command. Install Docker Compose plugin or docker-compose binary."
+  exit 1
+fi
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --keep-db) KEEP_DB=true; shift ;; 
@@ -19,9 +42,9 @@ echo "Killing all components and rebooting..."
 # Stop and clean Docker stack
 echo "Stopping Docker Compose stack..."
 if [[ "$KEEP_DB" == true ]]; then
-  docker-compose -f "$INFRA_DIR/docker-compose.yml" down --remove-orphans || true
+  $COMPOSE_CMD -f "$INFRA_DIR/docker-compose.yml" down --remove-orphans || true
 else
-  docker-compose -f "$INFRA_DIR/docker-compose.yml" down -v --remove-orphans || true
+  $COMPOSE_CMD -f "$INFRA_DIR/docker-compose.yml" down -v --remove-orphans || true
 fi
 
 # Kill frontend server
@@ -43,7 +66,7 @@ sleep 2
 
 # Restart Docker stack
 echo "Starting Docker Compose stack..."
-docker-compose -f "$INFRA_DIR/docker-compose.yml" up -d --build
+$COMPOSE_CMD -f "$INFRA_DIR/docker-compose.yml" up -d --build
 
 # Start frontend HTTPS server
 CERT="$FRONTEND_DIR/localhost.pem"

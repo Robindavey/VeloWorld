@@ -21,15 +21,38 @@ S3_BASE_PATH_DEFAULT="uploads"
 PID_FILE="/tmp/veloworld_frontend.pid"
 HTTPS_PID_FILE="/tmp/veloworld_frontend_https.pid"
 
+function have_cmd() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+function detect_compose_cmd() {
+  if have_cmd docker && docker compose version >/dev/null 2>&1; then
+    echo "docker compose"
+    return 0
+  fi
+
+  if have_cmd docker-compose; then
+    echo "docker-compose"
+    return 0
+  fi
+
+  return 1
+}
+
+if ! COMPOSE_CMD="$(detect_compose_cmd)"; then
+  echo "Missing Docker Compose command. Install Docker Compose plugin or docker-compose binary."
+  exit 1
+fi
+
 function start_all() {
   echo "Starting full stack via docker-compose..."
-  docker-compose -f "$INFRA_DIR/docker-compose.yml" up -d
+  $COMPOSE_CMD -f "$INFRA_DIR/docker-compose.yml" up -d
   echo "Development stack started. API available at http://localhost:8080"
 }
 
 function stop_all() {
   echo "Stopping all compose services..."
-  docker-compose -f "$INFRA_DIR/docker-compose.yml" down -v
+  $COMPOSE_CMD -f "$INFRA_DIR/docker-compose.yml" down -v
 }
 
 function start_backend() {
@@ -91,7 +114,7 @@ function stop_frontend() {
 
 function start_pipeline() {
   echo "Starting pipeline worker service..."
-  docker-compose -f "$INFRA_DIR/docker-compose.yml" up -d pipeline-worker
+  $COMPOSE_CMD -f "$INFRA_DIR/docker-compose.yml" up -d pipeline-worker
   echo "Pipeline worker started. Use option 11 to follow logs."
 }
 
@@ -122,7 +145,7 @@ function run_tests() {
 }
 
 function view_logs() {
-  docker-compose -f "$INFRA_DIR/docker-compose.yml" logs -f
+  $COMPOSE_CMD -f "$INFRA_DIR/docker-compose.yml" logs -f
 }
 
 function help_menu() {

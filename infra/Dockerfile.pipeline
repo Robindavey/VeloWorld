@@ -12,7 +12,9 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements and install Python dependencies
 COPY pipeline/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --no-cache-dir --upgrade "pip<26" "setuptools<81" wheel \
+    && printf 'setuptools<81\n' > /tmp/pip-constraints.txt \
+    && PIP_CONSTRAINT=/tmp/pip-constraints.txt pip install --no-cache-dir -r requirements.txt
 
 # Copy pipeline code
 COPY pipeline/ .

@@ -1,4 +1,12 @@
-Next Thing. 
-1. Improve Styling of page. we now call the Dedicated Demo Page the Map Tracer. And we cna remove the Demo Ride Simulator.
-2. We also need another Dedicated page for the route. here where should have a page that shows a 3d annimation of our dot moving along using the gps data and we see the turns and gradient similar to the Zwift Climb Portal. we need also a slide bar to jump along the route as well. 
-3. the rider profile data on the demo page should be its own page as well. where we cna see out chnage password method and chnage rider weight nad ftp. there persiset for that user.
+we first must make a TODO List to work though for this session and then we 
+1. We can return the ratio of graidents to standard and true.
+2. we need to improve the annimation in the 3d Routing. to add perspective and undersatnding and we can start to work on a bike + rider sprite. we cna also use ral world infor to decide BIOME, urban, mountian, lake, field ...
+3. the full site need the basic contacts, about us and proper landing page formatting. we need automatic light and dark modes and the upload route should be its own page as well. the my route should be the focus of the dashboard and we can see the profile. we also need to remoev the Map Tracer demo from the upload page.
+4. we can also use https://open-meteo.com to implinet current weather conditons that update aloing the route based on how fast we will reach that point. we can also toggle off that feature and set current weather conditions. like rain, wind and direction. we should show an animation of the wind from its direction from the 3d router and show rain radar and wind direction over the map in the Map Tracer.
+5. the HUD slider and gradient view obstruct the toggles at the top. 
+6. We need a destop app as well that we can run. this should be a separte deliverbale and downloadable for all OS and from the website.
+
+these are our task for today.
+write a hard TODO List that we go back to once we have complete a task. 
+decide where to start by how fast we can get them done. ask any relevant questions rather thna guessing to avoid mistakes.
+than we cna start
