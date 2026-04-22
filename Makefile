@@ -35,8 +35,8 @@ benchmark-pipeline:
 
 # Run database migrations
 migrate:
-	docker-compose -f infra/docker-compose.yml exec -T postgres psql -U veloverse -d veloverse -f /docker-entrypoint-initdb.d/001_initial_schema.sql
-	docker-compose -f infra/docker-compose.yml exec -T postgres psql -U veloverse -d veloverse -f /docker-entrypoint-initdb.d/002_social_features.sql
+	docker compose -f infra/docker-compose.yml exec -T postgres psql -U veloverse -d veloverse -f /docker-entrypoint-initdb.d/001_initial_schema.sql
+	docker compose -f infra/docker-compose.yml exec -T postgres psql -U veloverse -d veloverse -f /docker-entrypoint-initdb.d/002_social_features.sql
 
 # Clean up development environment
 clean:

@@ -1,2 +1,5 @@
 *.pem
 *.pdf
+pipeline/.venv/
+pipeline/.pytest_cache/
+pipeline/*/__pycache__/
